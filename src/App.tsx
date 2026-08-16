@@ -20,9 +20,6 @@ import { audio } from "./audio/tacticalAudio";
 
 
 
-const STAT_KEYS = ["statYears", "statProjects", "statExperiments", "statUptime"];
-
-
 const LIGHT_ORDER = ["full", "dawn", "night"] as const;
 const LAB_COUNT = 4;
 
@@ -770,40 +767,32 @@ export default function App() {
 
       {/* personal hero overlay */}
       {heroVisible && (
-        <div className="pointer-events-none absolute inset-0 z-[15] flex items-center justify-center">
-          <div className="flex flex-col items-center text-center">
-            <div className="mb-4 text-[11px] tracking-[0.6em] text-amber-300/80 glow-amber">
+        <div className="pointer-events-none absolute inset-0 z-[15] flex items-center justify-center px-4">
+          <div className="flex max-h-full flex-col items-center justify-center text-center">
+            <div className="mb-3 text-[10px] tracking-[0.6em] text-amber-300/80 glow-amber sm:text-[11px]">
               ◈ {t(lang, "welcome")} ◈
             </div>
-            <h1 className="font-disp text-6xl font-bold tracking-[0.2em] text-cyan-100 glow-cyan lg:text-7xl">
+            <h1 className="font-disp text-4xl font-bold tracking-[0.2em] text-cyan-100 glow-cyan sm:text-6xl lg:text-7xl">
               {PROFILE.codename}
             </h1>
-            <div className="mt-2 text-[13px] tracking-[0.5em] text-cyan-300/80">
+            <div className="mt-2 text-[11px] tracking-[0.5em] text-cyan-300/80 sm:text-[13px]">
               {lang === "zh" ? PROFILE.roleCn : PROFILE.role}
             </div>
-            <div className="mt-2 text-[11px] tracking-[0.35em] text-cyan-200/50">
+            <div className="mt-2 text-[10px] tracking-[0.35em] text-cyan-200/50 sm:text-[11px]">
               {PROFILE.name} · {lang === "zh" ? "上海 · 中国" : PROFILE.location}
             </div>
-            <div className="pointer-events-auto mt-7 flex gap-3">
+            <div className="pointer-events-auto mt-6 flex gap-3">
               <button
                 onClick={() => handleBodyMode("system")}
                 onMouseEnter={() => audio.hover()}
-                className="hud-frame px-6 py-2.5"
+                className="hud-frame"
               >
-                <span className="hud-inner flex items-center gap-2 hover:bg-cyan-400/10">
-                  <span className="flex items-center gap-2 text-[11px] font-bold tracking-[0.3em] text-cyan-300 glow-cyan">
+                <span className="hud-inner flex items-center gap-2 px-6 py-2.5 hover:bg-cyan-400/10">
+                  <span className="flex items-center gap-2 whitespace-nowrap text-[11px] font-bold tracking-[0.3em] text-cyan-300 glow-cyan">
                     ☉ {t(lang, "exploreSystem")}
                   </span>
                 </span>
               </button>
-            </div>
-            <div className="mt-9 flex gap-8">
-              {PROFILE.stats.map(([k, v], i) => (
-                <div key={k} className="flex flex-col items-center">
-                  <span className="font-disp text-2xl font-bold text-cyan-100 tabular-nums glow-cyan">{v}</span>
-                  <span className="mt-1 text-[8px] tracking-[0.3em] text-cyan-200/45">{t(lang, STAT_KEYS[i])}</span>
-                </div>
-              ))}
             </div>
           </div>
         </div>

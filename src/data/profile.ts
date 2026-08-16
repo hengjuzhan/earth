@@ -78,12 +78,6 @@ export const PROFILE = {
     "我着迷于把复杂的系统做成看得见的体验：WebGL 渲染管线、实时数据可视化、以及任何『感觉像从科幻电影里走出来』的界面。这个战术终端本身就是我的作品——用 Three.js、GLSL 与 React 从零搭建。",
     "如果你正在寻找一个既懂工程、又在乎像素级细节的开发者，UPLINK 已经为你打开。",
   ],
-  stats: [
-    ["CODE YEARS", "6+"],
-    ["PROJECTS SHIPPED", "23"],
-    ["WEBGL EXPERIMENTS", "40+"],
-    ["UPTIME", "24/7"],
-  ],
   skills: [
     {
       id: "frontend",

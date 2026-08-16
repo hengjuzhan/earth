@@ -1005,6 +1005,10 @@ export class GlobeEngine {
   private lastX = 0;
   private lastY = 0;
   private idleUntil = 0;
+  /* multi-touch pinch-to-zoom (mobile / tablet) */
+  private activePointers = new Map<number, { x: number; y: number }>();
+  private pinchDist = 0;
+  private pinched = false;
 
   private onFps?: (fps: number) => void;
   private onHover?: (h: HoverInfo | null) => void;
@@ -1326,6 +1330,7 @@ export class GlobeEngine {
     canvas.addEventListener("pointermove", this.onPointerMove);
     canvas.addEventListener("pointerup", this.onPointerUp);
     canvas.addEventListener("pointerleave", this.onPointerLeave);
+    canvas.addEventListener("pointercancel", this.onPointerCancel);
     canvas.addEventListener("wheel", this.onWheel, { passive: false });
     canvas.addEventListener("dblclick", this.onDblClick);
 
@@ -1389,15 +1394,13 @@ export class GlobeEngine {
       this.globeMat.needsUpdate = true;
     });
 
-    /* earth specular map — ocean sun glint */
-    this.loadTex(src("earth_specular_2048.jpg"), (t) => {
-      t.wrapS = THREE.RepeatWrapping;
-      this.globeMat.specularMap = t;
-      this.globeMat.specular = new THREE.Color(0xffffff);
-      this.globeMat.shininess = 30;
-      this.globeMat.emissiveIntensity = 0.3;
-      this.globeMat.needsUpdate = true;
-    });
+    /* earth surface — remove the specular glint (bright spot) by keeping
+       specular dark and skipping the ocean sun-glint map */
+    this.globeMat.specularMap = null;
+    this.globeMat.specular = new THREE.Color(0x060a0e);
+    this.globeMat.shininess = 6;
+    this.globeMat.emissiveIntensity = 0.3;
+    this.globeMat.needsUpdate = true;
 
     /* earth clouds — drifting white layer */
     this.loadTex(src("earth_clouds_1024.png"), (t) => {
@@ -4410,7 +4413,8 @@ export class GlobeEngine {
     this.focusPlanetId = null;
     const moonPos = this.moonWorldPos(new THREE.Vector3());
     const outward = moonPos.clone().normalize();
-    const to = moonPos.clone().addScaledVector(outward, 1.15);
+    /* keep the moon fully in frame instead of filling the whole screen */
+    const to = moonPos.clone().addScaledVector(outward, 2.4);
     this.startFlight(to, moonPos.clone(), 1.8, () => {
       const rel = this.camera.position.clone().sub(moonPos);
       const len = rel.length() || 1;
@@ -5040,6 +5044,7 @@ export class GlobeEngine {
     canvas.removeEventListener("pointermove", this.onPointerMove);
     canvas.removeEventListener("pointerup", this.onPointerUp);
     canvas.removeEventListener("pointerleave", this.onPointerLeave);
+    canvas.removeEventListener("pointercancel", this.onPointerCancel);
     canvas.removeEventListener("wheel", this.onWheel);
     canvas.removeEventListener("dblclick", this.onDblClick);
 
@@ -5058,6 +5063,15 @@ export class GlobeEngine {
   /* ------------ events ------------ */
 
   private onPointerDown = (e: PointerEvent) => {
+    this.activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.activePointers.size >= 2) {
+      /* second finger → pinch-to-zoom gesture */
+      this.pinched = true;
+      this.dragging = false;
+      const [a, b] = [...this.activePointers.values()];
+      this.pinchDist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      return;
+    }
     this.dragging = true;
     this.moved = false;
     this.downX = e.clientX;
@@ -5090,6 +5104,23 @@ export class GlobeEngine {
   }
 
   private onPointerMove = (e: PointerEvent) => {
+    const cur = this.activePointers.get(e.pointerId);
+    if (cur) {
+      cur.x = e.clientX;
+      cur.y = e.clientY;
+    }
+    /* pinch-to-zoom with two fingers */
+    if (this.activePointers.size >= 2) {
+      const pts = [...this.activePointers.values()];
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+      if (this.pinchDist > 0) {
+        const ratio = dist / this.pinchDist;
+        this.setZoomRadius(this.clampZoomRadius(this.getZoomRadius() * ratio));
+      }
+      this.pinchDist = dist;
+      this.moved = true;
+      return;
+    }
     if (this.dragging) {
       const dx = e.clientX - this.lastX;
       const dy = e.clientY - this.lastY;
@@ -5127,9 +5158,15 @@ export class GlobeEngine {
     }
   };
 
-  private onPointerUp = () => {
-    const wasClick = !this.moved;
+  private onPointerUp = (e: PointerEvent) => {
+    this.activePointers.delete(e.pointerId);
+    if (this.activePointers.size < 2) this.pinchDist = 0;
+    const wasClick = !this.moved && !this.pinched;
     this.dragging = false;
+    if (this.activePointers.size === 0) this.pinched = false;
+    if (this.renderer.domElement.hasPointerCapture(e.pointerId)) {
+      this.renderer.domElement.releasePointerCapture(e.pointerId);
+    }
     if (this.annihilation) return;
     /* click (not drag) → galaxy stars · UFO easter egg · node · celestial body */
     if (wasClick && this.mode === "galaxy" && this.hoverExo && this.onExoPlanetClick) {
@@ -5166,6 +5203,13 @@ export class GlobeEngine {
   private onPointerLeave = () => {
     this.dragging = false;
     if (this.onHover) this.onHover(null);
+  };
+
+  private onPointerCancel = () => {
+    this.activePointers.clear();
+    this.pinchDist = 0;
+    this.pinched = false;
+    this.dragging = false;
   };
 
   private onWheel = (e: WheelEvent) => {

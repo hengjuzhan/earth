@@ -5157,7 +5157,9 @@ export class GlobeEngine {
         this.sph.theta -= dx * 0.0042;
         this.sph.phi = THREE.MathUtils.clamp(this.sph.phi - dy * 0.0042, 0.16, Math.PI - 0.16);
       }
-      if (Math.hypot(e.clientX - this.downX, e.clientY - this.downY) > 6) this.moved = true;
+      /* generous tap threshold — a real tap on a phone often drifts a few px
+         from the down point; only cross it when the finger is clearly dragging */
+      if (Math.hypot(e.clientX - this.downX, e.clientY - this.downY) > 15) this.moved = true;
     } else {
       this.updateHover(e);
     }
@@ -5172,6 +5174,9 @@ export class GlobeEngine {
     if (this.renderer.domElement.hasPointerCapture(e.pointerId)) {
       this.renderer.domElement.releasePointerCapture(e.pointerId);
     }
+    /* recompute the hover target at the release point so a tap opens the
+       object under the finger even if it drifted a few px since pointerdown */
+    if (wasClick) this.updateHover(e);
     if (this.annihilation) return;
     /* click (not drag) → galaxy stars · UFO easter egg · node · celestial body */
     if (wasClick && this.mode === "galaxy" && this.hoverExo && this.onExoPlanetClick) {

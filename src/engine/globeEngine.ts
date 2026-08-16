@@ -4433,6 +4433,25 @@ export class GlobeEngine {
     this.resetView(1.6);
   }
 
+  /** tap on empty space → release any camera follow and return to the free view */
+  clearFocus() {
+    if (this.mode === "galaxy") {
+      if (this.galaxyFocusId || this.exoFocusId || this.starFocusId) this.clearGalaxyFocus();
+    } else if (this.mode === "system") {
+      if (this.focusPlanetId) {
+        this.focusPlanetId = null;
+        this.resetView(1.4);
+      }
+    } else if (this.mode === "earth") {
+      if (this.satFocus || this.moonFocus) {
+        this.satFocus = null;
+        this.moonFocus = false;
+        this.focusPlanetId = null;
+        this.resetView(1.4);
+      }
+    }
+  }
+
   /* ------------ camera flight (straight-line warp, no orbit sweep) ------------ */
 
   private sphToVec(
@@ -5119,7 +5138,10 @@ export class GlobeEngine {
       const pts = [...this.activePointers.values()];
       const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
       if (this.pinchDist > 0) {
-        const ratio = dist / this.pinchDist;
+        /* spread fingers OUT (dist grows) → zoom IN → radius shrinks;
+           pinching IN (dist shrinks) → zoom OUT → radius grows.
+           radius is the camera distance, so we invert the spread ratio. */
+        const ratio = this.pinchDist / dist;
         this.setZoomRadius(this.clampZoomRadius(this.getZoomRadius() * ratio));
       }
       this.pinchDist = dist;
@@ -5207,6 +5229,9 @@ export class GlobeEngine {
       this.onPlanetClick(this.hoverPlanetId);
     } else if (wasClick && this.hoverId && this.onNodeClick) {
       this.onNodeClick(this.hoverId);
+    } else if (wasClick) {
+      /* tapped empty space → release any camera follow */
+      this.clearFocus();
     }
   };
 

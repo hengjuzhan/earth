@@ -5080,6 +5080,11 @@ export class GlobeEngine {
     this.lastY = e.clientY;
     /* middle button or right button = PAN (up/down/left/right) */
     this.panning = e.button === 1 || e.button === 2;
+    /* touch/mouse tap — compute the hover target NOW so a tap can open the
+       planet/star/galaxy on release. Desktop hover already updates this via
+       pointermove, but touch only fires pointermove while dragging, so without
+       this the hover* fields stay null and taps never register as clicks. */
+    if (!this.panning) this.updateHover(e);
     /* interrupt any in-flight camera warp so the drag feels instant */
     this.finishFlight();
     gsap.killTweensOf(this.sph);

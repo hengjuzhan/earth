@@ -1076,7 +1076,9 @@ export class GlobeEngine {
       45,
       container.clientWidth / Math.max(container.clientHeight, 1),
       0.1,
-      120
+      /* galaxy mode lets you zoom out to radius 330 — the far plane must
+         stay well beyond that or the whole galaxy gets clipped away */
+      1000
     );
 
     this.dotTex = makeGlowDotTexture();

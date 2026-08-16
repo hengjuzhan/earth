@@ -1,0 +1,286 @@
+@import "tailwindcss";
+
+:root {
+  --bg-deep: #060911;
+  --cyan: #00f0ff;
+  --cyan-dim: rgba(0, 240, 255, 0.35);
+  --amber: #ffb000;
+  --red: #ff3366;
+  --panel-bg: rgba(6, 13, 26, 0.92);
+  --clip-corner: polygon(
+    0 14px, 14px 0,
+    calc(100% - 14px) 0, 100% 14px,
+    100% calc(100% - 14px), calc(100% - 14px) 100%,
+    14px 100%, 0 calc(100% - 14px)
+  );
+  --clip-btn: polygon(
+    0 6px, 6px 0,
+    calc(100% - 6px) 0, 100% 6px,
+    100% calc(100% - 6px), calc(100% - 6px) 100%,
+    6px 100%, 0 calc(100% - 6px)
+  );
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background: var(--bg-deep);
+  overflow: hidden;
+  color: #c8f6ff;
+}
+
+body {
+  font-family: "Share Tech Mono", "Courier New", ui-monospace, monospace;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+.font-disp { font-family: "Rajdhani", "Share Tech Mono", sans-serif; }
+
+/* ---------- HUD clip-path frame (double layer for border) ---------- */
+.hud-frame {
+  position: relative;
+  padding: 1px; /* 1px gradient border — inner content now flows (fixes collapsed widgets) */
+  clip-path: var(--clip-corner);
+  background: linear-gradient(180deg, rgba(0, 240, 255, 0.55), rgba(0, 240, 255, 0.08) 60%, rgba(0, 240, 255, 0.25));
+}
+.hud-frame-amber {
+  background: linear-gradient(180deg, rgba(255, 176, 0, 0.55), rgba(255, 176, 0, 0.08) 60%, rgba(255, 176, 0, 0.28));
+}
+.hud-frame-red {
+  background: linear-gradient(180deg, rgba(255, 51, 102, 0.6), rgba(255, 51, 102, 0.1) 60%, rgba(255, 51, 102, 0.3));
+}
+.hud-inner {
+  position: relative;
+  clip-path: var(--clip-corner);
+  background:
+    linear-gradient(180deg, rgba(9, 16, 32, 0.96), rgba(4, 8, 16, 0.97)),
+    var(--panel-bg);
+  overflow: hidden;
+}
+.hud-inner-live {
+  background:
+    linear-gradient(180deg, rgba(46, 30, 6, 0.97), rgba(26, 16, 3, 0.98)),
+    var(--panel-bg);
+  box-shadow: inset 0 0 18px rgba(255, 176, 0, 0.22);
+}
+.hud-btn {
+  position: relative;
+  clip-path: var(--clip-btn);
+  background: rgba(8, 18, 34, 0.9);
+  transition: all 0.15s ease;
+  overflow: hidden;
+  padding: 0.25rem 0.75rem;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.hud-btn:hover {
+  background: rgba(0, 240, 255, 0.14);
+  transform: translateY(-2px);
+  box-shadow: 0 0 18px rgba(0, 240, 255, 0.25), inset 0 0 12px rgba(0, 240, 255, 0.12);
+}
+.hud-btn:active { transform: translateY(0); }
+.hud-btn-active {
+  background: rgba(0, 240, 255, 0.16);
+  box-shadow: inset 0 0 14px rgba(0, 240, 255, 0.22), 0 0 16px rgba(0, 240, 255, 0.2);
+  color: #fff;
+}
+
+/* ---------- glow text ---------- */
+.glow-cyan { color: var(--cyan); text-shadow: 0 0 8px rgba(0, 240, 255, 0.8), 0 0 24px rgba(0, 240, 255, 0.35); }
+.glow-amber { color: var(--amber); text-shadow: 0 0 8px rgba(255, 176, 0, 0.8), 0 0 24px rgba(255, 176, 0, 0.35); }
+.glow-red { color: var(--red); text-shadow: 0 0 8px rgba(255, 51, 102, 0.85), 0 0 24px rgba(255, 51, 102, 0.4); }
+
+/* ---------- full screen CRT overlays ---------- */
+.scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.28) 0px,
+    rgba(0, 0, 0, 0.28) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: multiply;
+  animation: scanmove 9s linear infinite;
+  opacity: 0.32;
+}
+@keyframes scanmove {
+  from { background-position: 0 0; }
+  to { background-position: 0 100px; }
+}
+.crt-flicker {
+  position: fixed;
+  inset: 0;
+  z-index: 59;
+  pointer-events: none;
+  background: rgba(120, 200, 255, 0.018);
+  animation: flick 0.14s steps(2) infinite;
+}
+@keyframes flick {
+  0% { opacity: 0.55; }
+  50% { opacity: 0.2; }
+  100% { opacity: 0.6; }
+}
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 58;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at center, transparent 58%, rgba(0, 0, 5, 0.42) 100%),
+    linear-gradient(180deg, rgba(0, 8, 20, 0.2), transparent 12%, transparent 88%, rgba(0, 8, 20, 0.22));
+}
+.tactical-grid-bg {
+  background:
+    linear-gradient(rgba(0, 240, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+/* ---------- blinking elements ---------- */
+@keyframes blink { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.15; } }
+.blink { animation: blink 1.1s steps(1) infinite; }
+.blink-fast { animation: blink 0.5s steps(1) infinite; }
+
+/* ---------- typewriter cursor ---------- */
+.tc-cursor {
+  display: inline-block;
+  width: 9px;
+  height: 15px;
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+  vertical-align: -2px;
+  animation: blink 0.8s steps(1) infinite;
+}
+
+/* ---------- ticker ---------- */
+@keyframes ticker {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.ticker-track {
+  display: inline-block;
+  white-space: nowrap;
+  animation: ticker 36s linear infinite;
+}
+
+/* ---------- pulsing radar dot ---------- */
+@keyframes radar-ping {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+.radar-dot { transform-box: fill-box; transform-origin: center; animation: radar-ping 1.8s ease-out infinite; }
+
+/* ---------- panel sweep line ---------- */
+@keyframes sweep-y {
+  from { top: -10%; }
+  to { top: 110%; }
+}
+.sweep {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 34%;
+  background: linear-gradient(180deg, transparent, rgba(0, 240, 255, 0.07), transparent);
+  animation: sweep-y 4.5s linear infinite;
+  pointer-events: none;
+}
+
+/* ---------- bars (FPS / signal) ---------- */
+@keyframes eq {
+  0%, 100% { transform: scaleY(0.35); }
+  50% { transform: scaleY(1); }
+}
+.eq-bar { transform-origin: bottom; animation: eq 1.2s ease-in-out infinite; }
+
+/* ---------- scrollbar ---------- */
+.hud-scroll::-webkit-scrollbar { width: 4px; }
+.hud-scroll::-webkit-scrollbar-track { background: rgba(0, 240, 255, 0.06); }
+.hud-scroll::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.45); }
+.hud-scroll { scrollbar-width: thin; scrollbar-color: rgba(0, 240, 255, 0.45) transparent; }
+
+/* ---------- flash on execute ---------- */
+@keyframes screen-flash {
+  0% { opacity: 0.85; }
+  100% { opacity: 0; }
+}
+.screen-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+  background: radial-gradient(circle at center, rgba(255, 200, 100, 0.35), rgba(0, 240, 255, 0.22));
+  animation: screen-flash 0.6s ease-out forwards;
+}
+
+/* ---------- fx toggle: crystal-clear mode ---------- */
+.fx-off .sweep { display: none; }
+.fx-off .glow-cyan,
+.fx-off .glow-amber,
+.fx-off .glow-red { text-shadow: 0 0 4px currentColor; }
+
+/* ---------- settings range slider ---------- */
+.hud-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: rgba(0, 240, 255, 0.15);
+  outline: none;
+  cursor: pointer;
+}
+.hud-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  border: 2px solid #060911;
+  box-shadow: 0 0 8px currentColor;
+  transform: rotate(45deg);
+  cursor: pointer;
+}
+.hud-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: currentColor;
+  border: 2px solid #060911;
+  box-shadow: 0 0 8px currentColor;
+  transform: rotate(45deg);
+  cursor: pointer;
+}
+
+/* ---------- apocalypse button ---------- */
+@keyframes apoc-ping {
+  0% { transform: scale(1); opacity: 0.85; }
+  100% { transform: scale(1.65); opacity: 0; }
+}
+.apoc-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(255, 51, 102, 0.6);
+  animation: apoc-ping 2.1s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes apoc-rot {
+  to { transform: rotate(360deg); }
+}
+.apoc-dash {
+  animation: apoc-rot 9s linear infinite;
+}
+
+/* ---------- corner brackets ---------- */
+.corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+.corner-tl { top: -2px; left: -2px; border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+.corner-tr { top: -2px; right: -2px; border-top: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+.corner-bl { bottom: -2px; left: -2px; border-bottom: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+.corner-br { bottom: -2px; right: -2px; border-bottom: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }

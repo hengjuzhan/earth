@@ -249,6 +249,15 @@ export const PLANET_ZH: Record<string, { name: string; type: string }> = {
   saturn: { name: "土星", type: "气态巨行星 · 环带堡垒" },
   uranus: { name: "天王星", type: "冰巨星 · 侧躺自转" },
   neptune: { name: "海王星", type: "冰巨星 · 深蓝边界" },
+  io: { name: "木卫一", type: "伽利略卫星 · 火山熔炉" },
+  europa: { name: "欧罗巴", type: "伽利略卫星 · 冰壳海洋" },
+  ganymede: { name: "木卫三", type: "伽利略卫星 · 最大卫星" },
+  callisto: { name: "木卫四", type: "伽利略卫星 · 古老表面" },
+  titan: { name: "泰坦", type: "大型卫星 · 甲烷世界" },
+  phobos: { name: "火卫一", type: "小行星卫星 · 濒临碎裂" },
+  deimos: { name: "火卫二", type: "小行星卫星 · 外层伴星" },
+  triton: { name: "海卫一", type: "大型卫星 · 被捕俘柯伊伯带天体" },
+  pluto: { name: "冥王星", type: "矮行星 · 柯伊伯带" },
 };
 
 export const MISSION_ZH: Record<string, string> = {

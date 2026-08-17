@@ -1,4 +1,4 @@
-﻿import * as THREE from "three";
+import * as THREE from "three";
 import { gsap } from "gsap";
 import { audio } from "../audio/tacticalAudio";
 import { EXO_PLANETS, GALAXY_STARS, NEIGHBOR_GALAXIES, type ExoPlanetStyle } from "../data/planets";
@@ -420,6 +420,9 @@ interface PlanetDef {
   ring?: { inner: number; outer: number; color: number; opacity: number; tilt: number; textured?: boolean };
   atmo?: number;
   isMoon?: boolean;
+  moonOf?: string;
+  moonR?: number;
+  moonSpeed?: number;
 }
 
 const PLANET_DEFS: PlanetDef[] = [
@@ -432,7 +435,20 @@ const PLANET_DEFS: PlanetDef[] = [
   { id: "saturn", name: "SATURN", color: "#E8D8A8", radius: 0.95, dist: 23.8, speed: 0.075, selfSpin: 0.2, tilt: 0.3, tex: { seed: 47, base: [214, 188, 140], bands: { count: 7, palette: [[232, 210, 162], [198, 170, 120], [244, 226, 184]], strength: 0.6 }, swirl: 1.2, size: 512 }, ring: { inner: 1.45, outer: 2.35, color: 0xd8c9a0, opacity: 0.62, tilt: 0.42, textured: true }, atmo: 0xe0c890 },
   { id: "uranus", name: "URANUS", color: "#9FE8E4", radius: 0.62, dist: 29.0, speed: 0.052, selfSpin: 0.16, tilt: 1.35, tex: { seed: 53, base: [150, 216, 214], bands: { count: 4, palette: [[168, 230, 228], [130, 198, 200]], strength: 0.35 }, swirl: 0.5 }, ring: { inner: 1.5, outer: 1.95, color: 0x9fd8e8, opacity: 0.25, tilt: 1.35 }, atmo: 0x8ad8d8 },
   { id: "neptune", name: "NEPTUNE", color: "#5A8ADF", radius: 0.58, dist: 33.8, speed: 0.04, selfSpin: 0.17, tilt: 0.4, tex: { seed: 59, base: [70, 110, 210], bands: { count: 5, palette: [[90, 140, 230], [60, 96, 196], [110, 160, 240]], strength: 0.5 }, swirl: 1.0, storm: { x: 0.3, y: 0.45, rx: 0.08, ry: 0.04, color: [30, 50, 110] }, size: 512 }, atmo: 0x5a80c8 },
-  { id: "luna", name: "LUNA", color: "#CFD6E8", radius: 0.13, dist: 0, speed: 0, selfSpin: 0.05, tilt: 0.3, tex: { seed: 13, base: [150, 152, 168] }, useMoonTex: true, isMoon: true },
+  { id: "luna", name: "LUNA", color: "#CFD6E8", radius: 0.13, dist: 0, speed: 0, selfSpin: 0.05, tilt: 0.3, tex: { seed: 13, base: [150, 152, 168] }, useMoonTex: true, isMoon: true, moonR: 1.05, moonSpeed: 0.5 },
+
+  /* ---- REAL SATELLITES — Galilean moons (Jupiter), Titan (Saturn), Martian moons, Triton (Neptune) ---- */
+  { id: "io", name: "IO", color: "#F8E8A0", radius: 0.16, dist: 0, speed: 0, selfSpin: 0.3, tilt: 0.05, tex: { seed: 61, base: [226, 198, 120], craters: 48, size: 256 }, isMoon: true, moonOf: "jupiter", moonR: 2.35, moonSpeed: 1.6 },
+  { id: "europa", name: "EUROPA", color: "#E8D8C8", radius: 0.14, dist: 0, speed: 0, selfSpin: 0.28, tilt: 0.1, tex: { seed: 63, base: [210, 190, 170], craters: 12, size: 256 }, isMoon: true, moonOf: "jupiter", moonR: 3.05, moonSpeed: 1.15 },
+  { id: "ganymede", name: "GANYMEDE", color: "#B8B8C0", radius: 0.21, dist: 0, speed: 0, selfSpin: 0.22, tilt: 0.08, tex: { seed: 65, base: [160, 160, 172], craters: 36, size: 256 }, isMoon: true, moonOf: "jupiter", moonR: 3.95, moonSpeed: 0.82 },
+  { id: "callisto", name: "CALLISTO", color: "#B8B4A0", radius: 0.19, dist: 0, speed: 0, selfSpin: 0.18, tilt: 0.15, tex: { seed: 67, base: [150, 148, 132], craters: 44, size: 256 }, isMoon: true, moonOf: "jupiter", moonR: 5.05, moonSpeed: 0.55 },
+  { id: "titan", name: "TITAN", color: "#E8B060", radius: 0.22, dist: 0, speed: 0, selfSpin: 0.2, tilt: 0.1, tex: { seed: 69, base: [216, 160, 88], bands: { count: 4, palette: [[226, 176, 100], [190, 140, 78], [236, 196, 120]], strength: 0.4 }, swirl: 0.8, size: 256 }, isMoon: true, moonOf: "saturn", moonR: 2.4, moonSpeed: 0.62 },
+  { id: "phobos", name: "PHOBOS", color: "#B0A090", radius: 0.055, dist: 0, speed: 0, selfSpin: 0.5, tilt: 0.3, tex: { seed: 71, base: [130, 118, 102], craters: 8, size: 128 }, isMoon: true, moonOf: "mars", moonR: 0.62, moonSpeed: 1.9 },
+  { id: "deimos", name: "DEIMOS", color: "#B8B0A8", radius: 0.05, dist: 0, speed: 0, selfSpin: 0.5, tilt: 0.4, tex: { seed: 73, base: [138, 130, 118], craters: 6, size: 128 }, isMoon: true, moonOf: "mars", moonR: 0.78, moonSpeed: 1.2 },
+  { id: "triton", name: "TRITON", color: "#D0D0E0", radius: 0.16, dist: 0, speed: 0, selfSpin: 0.2, tilt: 0.4, tex: { seed: 75, base: [176, 176, 204], craters: 26, size: 256 }, isMoon: true, moonOf: "neptune", moonR: 1.6, moonSpeed: 0.5 },
+
+  /* ---- DWARF PLANET — Pluto sitting in the Kuiper belt ---- */
+  { id: "pluto", name: "PLUTO", color: "#E8B088", radius: 0.2, dist: 37.5, speed: 0.02, selfSpin: 0.08, tilt: 0.7, tex: { seed: 77, base: [206, 158, 118], craters: 26, size: 256 }, atmo: 0xc8a080 },
 ];
 
 /** procedural Cassini-like ring texture — radial banded alpha */
@@ -687,6 +703,36 @@ function makeCrosshairTexture(): THREE.CanvasTexture {
   return tex;
 }
 
+/* text sprite label — a small HUD plate with the given caption */
+function makeTextSprite(text: string, color: string): THREE.Sprite {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 120;
+  const g = c.getContext("2d")!;
+  g.clearRect(0, 0, 512, 120);
+  g.font = "600 42px 'Rajdhani','Segoe UI',system-ui,sans-serif";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillStyle = "rgba(2,7,16,0.6)";
+  g.fillRect(96, 20, 320, 80);
+  g.strokeStyle = color;
+  g.globalAlpha = 0.55;
+  g.lineWidth = 3;
+  g.strokeRect(96, 20, 320, 80);
+  g.globalAlpha = 1;
+  g.shadowColor = color;
+  g.shadowBlur = 14;
+  g.fillStyle = color;
+  g.fillText(text, 256, 62);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false })
+  );
+  sprite.scale.set(2.6, 0.6, 1);
+  return sprite;
+}
+
 /* ---------------- shaders ---------------- */
 
 const ATMOSPHERE_VERT = /* glsl */ `
@@ -883,6 +929,7 @@ export class GlobeEngine {
   private focusPlanetId: string | null = null;
   private hoverPlanetId: string | null = null;
   private belt!: THREE.Points;
+  private kuiperBelt!: THREE.Points;
   private outerSystemRing!: THREE.Line;
   private tmpV = new THREE.Vector3();
   private tmpV2 = new THREE.Vector3();
@@ -978,6 +1025,9 @@ export class GlobeEngine {
     glow: THREE.Sprite;
     world: THREE.Vector3;
     mesh: THREE.Mesh;
+    /* interaction: pulsing reticle + hover name plate */
+    reticle?: THREE.Sprite;
+    label?: THREE.Sprite;
     /* real physics: proper motion + binary orbit */
     orbit?: { center: THREE.Vector3; axis: THREE.Vector3; phase: number; rate: number; radius: number };
     proper?: THREE.Vector3;
@@ -2010,13 +2060,24 @@ export class GlobeEngine {
     for (const def of PLANET_DEFS) {
       const entry = this.buildPlanetEntry(def);
       if (def.isMoon) {
-        const parent = this.planets.find((p) => p.id === "terra");
+        const parent = this.planets.find((p) => p.id === (def.moonOf ?? "terra"));
         if (parent) {
           parent.group.add(entry.group);
-          entry.mesh.position.x = 1.05;
-          entry.glow.position.x = 1.05;
-          entry.highlight.position.x = 1.05;
-          entry.moon = { pivot: entry.group, angle: Math.random() * Math.PI * 2, speed: 0.5 };
+          const r = def.moonR ?? parent.radius * 2.2;
+          entry.mesh.position.x = r;
+          entry.glow.position.x = r;
+          entry.highlight.position.x = r;
+          entry.moon = { pivot: entry.group, angle: Math.random() * Math.PI * 2, speed: def.moonSpeed ?? 0.5 };
+          /* faint orbit ring for the moon, in the parent planet's local space */
+          const moonPts: THREE.Vector3[] = [];
+          for (let i = 0; i <= 96; i++) {
+            const a = (i / 96) * Math.PI * 2;
+            moonPts.push(new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r));
+          }
+          const mg = new THREE.BufferGeometry().setFromPoints(moonPts);
+          parent.group.add(
+            new THREE.Line(mg, new THREE.LineBasicMaterial({ color: new THREE.Color(entry.color), transparent: true, opacity: 0.2 }))
+          );
         }
       } else {
         this.systemGroup.add(entry.group);
@@ -2072,6 +2133,32 @@ export class GlobeEngine {
     );
     this.outerSystemRing.computeLineDistances();
     this.systemGroup.add(this.outerSystemRing);
+
+    /* Kuiper belt — faint icy trans-Neptunian debris beyond the perimeter */
+    const kuiperCount = 900;
+    const kuiperPos = new Float32Array(kuiperCount * 3);
+    for (let i = 0; i < kuiperCount; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 38.5 + Math.random() * 3.4;
+      kuiperPos[i * 3] = Math.cos(a) * r;
+      kuiperPos[i * 3 + 1] = (Math.random() - 0.5) * 1.8;
+      kuiperPos[i * 3 + 2] = Math.sin(a) * r;
+    }
+    const kgeo = new THREE.BufferGeometry();
+    kgeo.setAttribute("position", new THREE.BufferAttribute(kuiperPos, 3));
+    this.kuiperBelt = new THREE.Points(
+      kgeo,
+      new THREE.PointsMaterial({
+        size: 0.05,
+        map: this.dotTex,
+        color: 0x8aa0c8,
+        transparent: true,
+        opacity: 0.32,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    this.systemGroup.add(this.kuiperBelt);
 
     /* orbit path rings */
     for (const p of this.planets) {
@@ -3949,6 +4036,26 @@ export class GlobeEngine {
       glow.scale.setScalar(1.5);
       glow.position.copy(pos);
       g.add(glow);
+
+      /* interaction stack: pulsing reticle ring + hover name plate (hidden until hovered) */
+      const reticle = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: this.makeRingTexture(),
+          color: s.color,
+          blending: THREE.AdditiveBlending,
+          transparent: true,
+          depthWrite: false,
+          opacity: 0,
+        })
+      );
+      reticle.scale.setScalar(2.4);
+      reticle.position.copy(pos);
+      g.add(reticle);
+      const label = makeTextSprite(s.name, s.color);
+      label.position.set(pos.x, pos.y + 2.4, pos.z);
+      label.visible = false;
+      g.add(label);
+
       this.starMarkers.push({
         id: s.id,
         name: s.name,
@@ -3956,6 +4063,8 @@ export class GlobeEngine {
         glow,
         world: pos.clone(),
         mesh,
+        reticle,
+        label,
         properCycle: Math.random() * Math.PI * 2,
         base: pos.clone(),
       });
@@ -6607,6 +6716,7 @@ export class GlobeEngine {
       }
     }
     this.belt.rotation.y += dt * 0.01;
+    this.kuiperBelt.rotation.y += dt * 0.006;
     this.outerSystemRing.rotation.y -= dt * 0.008;
     /* comets + wandering UFOs + asteroids keep drifting in all modes */
     if (!this.annihilation) {
@@ -6788,6 +6898,18 @@ export class GlobeEngine {
         m.mesh.rotation.y += dt * 0.12;
         const gm = m.glow.material as THREE.SpriteMaterial;
         gm.opacity = 0.7 + Math.sin(this.time * 2.4 + m.world.x) * 0.25;
+        /* interaction — reticle pulses + name plate appears on hover/focus */
+        const active = m.id === this.hoverStar || m.id === this.starFocusId;
+        if (m.reticle) {
+          m.reticle.position.copy(m.mesh.position);
+          const rm = m.reticle.material as THREE.SpriteMaterial;
+          rm.opacity = active ? 0.4 + Math.sin(this.time * 4) * 0.18 : 0;
+        }
+        if (m.label) {
+          m.label.position.copy(m.mesh.position);
+          m.label.position.y += 2.4;
+          m.label.visible = active;
+        }
       }
       if (this.solMarker) {
         this.solMarker.scale.setScalar(1.4 + Math.sin(this.time * 2.8) * 0.3);

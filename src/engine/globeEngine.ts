@@ -4842,30 +4842,7 @@ export class GlobeEngine {
   }
 
   private loadLocalGroupPhotos() {
-    /* real NASA / Hubble observations, kept to the BIGGEST members and
-       played as a small, -rotating core-bulge detail embedded in the disc
-       (not a flat photo billboard over every galaxy). large→medium fallback. */
-    const map: Record<string, string> = {
-      "milky-way": "PIA18913",   // Planck full-sky portrait of the Milky Way
-      andromeda: "PIA04921",     // GALEX ultraviolet view of M31
-    };
-    for (const [id, nasaId] of Object.entries(map)) {
-      const lg = this.localGroupGalaxies.find((x) => x.def.id === id);
-      if (!lg || !lg.photo) continue;
-      const urls = [
-        `https://images-assets.nasa.gov/image/${nasaId}/${nasaId}~large.jpg`,
-        `https://images-assets.nasa.gov/image/${nasaId}/${nasaId}~medium.jpg`,
-      ];
-      this.loadTex(urls, (t) => {
-        if (!lg.photo) return;
-        t.colorSpace = THREE.SRGBColorSpace;
-        t.anisotropy = 8;
-        const m = lg.photo.material as THREE.SpriteMaterial;
-        m.map = t;
-        m.color.set(0xffffff);
-        m.needsUpdate = true;
-      });
-    }
+    /* NASA photo billboards disabled — user prefers interactive 3D stars  */
   }
 
   /** zoom the camera into a local-group galaxy and enter a free orbit */

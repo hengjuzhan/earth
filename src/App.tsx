@@ -16,6 +16,24 @@ import {
 } from "./data/planets";
 import { localGroupGalaxyById, type LocalGroupGalaxy } from "./data/localGroup";
 import { GALAXY_INTERIOR_STARS_BY_GALAXY, GALAXY_INTERIOR_PLANETS_BY_GALAXY, type GalaxyInteriorStar, type GalaxyInteriorPlanet } from "./data/galaxyInteriors";
+
+/** search all galaxy interior star arrays for a star by id */
+function findGalaxyInteriorStar(id: string): GalaxyInteriorStar | undefined {
+  for (const arr of Object.values(GALAXY_INTERIOR_STARS_BY_GALAXY)) {
+    const found = arr.find((s) => s.id === id);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/** search all galaxy interior planet arrays for a planet by id */
+function findGalaxyInteriorPlanet(id: string): GalaxyInteriorPlanet | undefined {
+  for (const arr of Object.values(GALAXY_INTERIOR_PLANETS_BY_GALAXY)) {
+    const found = arr.find((p) => p.id === id);
+    if (found) return found;
+  }
+  return undefined;
+}
 import { PROFILE } from "./data/profile";
 import { ALIEN_MSGS, PLANET_ZH, t, type Lang } from "./data/i18n";
 import { audio } from "./audio/tacticalAudio";
@@ -393,12 +411,7 @@ export default function App() {
   /* ---------- galaxy interior stars ---------- */
 
   const handleGalaxyInteriorStarClick = useCallback((id: string) => {
-    const star = GALAXY_INTERIOR_STARS_BY_GALAXY.andromeda.find((s) => s.id === id)
-      ?? GALAXY_INTERIOR_STARS_BY_GALAXY.triangulum.find((s) => s.id === id)
-      ?? GALAXY_INTERIOR_STARS_BY_GALAXY.lmc.find((s) => s.id === id)
-      ?? GALAXY_INTERIOR_STARS_BY_GALAXY.smc.find((s) => s.id === id)
-      ?? GALAXY_INTERIOR_STARS_BY_GALAXY.ic10.find((s) => s.id === id)
-      ?? GALAXY_INTERIOR_STARS_BY_GALAXY.ngc6822.find((s) => s.id === id);
+    const star = findGalaxyInteriorStar(id);
     if (!star) return;
     audio.lock();
     setGalaxyInteriorStar(star);
@@ -416,12 +429,7 @@ export default function App() {
   /* ---------- galaxy interior planets ---------- */
 
   const handleGalaxyInteriorPlanetClick = useCallback((id: string) => {
-    const planet = GALAXY_INTERIOR_PLANETS_BY_GALAXY.andromeda.find((p) => p.id === id)
-      ?? GALAXY_INTERIOR_PLANETS_BY_GALAXY.triangulum.find((p) => p.id === id)
-      ?? GALAXY_INTERIOR_PLANETS_BY_GALAXY.lmc.find((p) => p.id === id)
-      ?? GALAXY_INTERIOR_PLANETS_BY_GALAXY.smc.find((p) => p.id === id)
-      ?? GALAXY_INTERIOR_PLANETS_BY_GALAXY.ic10.find((p) => p.id === id)
-      ?? GALAXY_INTERIOR_PLANETS_BY_GALAXY.ngc6822.find((p) => p.id === id);
+    const planet = findGalaxyInteriorPlanet(id);
     if (!planet) return;
     audio.lock();
     setGalaxyInteriorPlanet(planet);
@@ -922,12 +930,7 @@ export default function App() {
             ◈ {(() => {
               const lgz = localGroupGalaxyById(hover.id);
               if (lgz) return lang === "zh" ? lgz.zh : lgz.name;
-              const gis = GALAXY_INTERIOR_STARS_BY_GALAXY.andromeda.find((s) => s.id === hover.id)
-                ?? GALAXY_INTERIOR_STARS_BY_GALAXY.triangulum.find((s) => s.id === hover.id)
-                ?? GALAXY_INTERIOR_STARS_BY_GALAXY.lmc.find((s) => s.id === hover.id)
-                ?? GALAXY_INTERIOR_STARS_BY_GALAXY.smc.find((s) => s.id === hover.id)
-                ?? GALAXY_INTERIOR_STARS_BY_GALAXY.ic10.find((s) => s.id === hover.id)
-                ?? GALAXY_INTERIOR_STARS_BY_GALAXY.ngc6822.find((s) => s.id === hover.id);
+              const gis = findGalaxyInteriorStar(hover.id);
               if (gis) return lang === "zh" ? gis.zh : gis.name;
               return hover.name;
             })()}

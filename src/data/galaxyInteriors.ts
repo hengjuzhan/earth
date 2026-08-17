@@ -797,7 +797,603 @@ export const GALAXY_INTERIOR_CONFIGS: Record<string, GalaxyInteriorConfig> = {
     dustAmount: 0.2,
     starCount: 40,
   },
+  m32: {
+    galaxyId: "m32",
+    spiralArms: 0,
+    armPitch: 0,
+    armWidth: 0,
+    coreRadius: 1.2,
+    discRadius: 6,
+    coreColor: "#ffe8c0",
+    armColor: "#f0e0c0",
+    dustAmount: 0.1,
+    starCount: 40,
+  },
+  m110: {
+    galaxyId: "m110",
+    spiralArms: 0,
+    armPitch: 0,
+    armWidth: 0,
+    coreRadius: 1.0,
+    discRadius: 7,
+    coreColor: "#fff0d0",
+    armColor: "#efe0c8",
+    dustAmount: 0.2,
+    starCount: 45,
+  },
+  "sagittarius-dwarf": {
+    galaxyId: "sagittarius-dwarf",
+    spiralArms: 0,
+    armPitch: 0,
+    armWidth: 0,
+    coreRadius: 1.0,
+    discRadius: 6,
+    coreColor: "#ffe8d0",
+    armColor: "#ffd8a0",
+    dustAmount: 0.1,
+    starCount: 35,
+  },
+  "sculptor-dwarf": {
+    galaxyId: "sculptor-dwarf",
+    spiralArms: 0,
+    armPitch: 0,
+    armWidth: 0,
+    coreRadius: 0.8,
+    discRadius: 5,
+    coreColor: "#cfe4ff",
+    armColor: "#d0e0ff",
+    dustAmount: 0.05,
+    starCount: 30,
+  },
+  "fornax-dwarf": {
+    galaxyId: "fornax-dwarf",
+    spiralArms: 0,
+    armPitch: 0,
+    armWidth: 0,
+    coreRadius: 0.8,
+    discRadius: 6,
+    coreColor: "#d8d0ff",
+    armColor: "#e0d8ff",
+    dustAmount: 0.1,
+    starCount: 35,
+  },
+  ngc185: {
+    galaxyId: "ngc185",
+    spiralArms: 0,
+    armPitch: 0,
+    armWidth: 0,
+    coreRadius: 0.8,
+    discRadius: 5,
+    coreColor: "#ffe8c0",
+    armColor: "#efe0c8",
+    dustAmount: 0.2,
+    starCount: 35,
+  },
+  ngc147: {
+    galaxyId: "ngc147",
+    spiralArms: 0,
+    armPitch: 0,
+    armWidth: 0,
+    coreRadius: 0.8,
+    discRadius: 5,
+    coreColor: "#f0e8d8",
+    armColor: "#e8e0d0",
+    dustAmount: 0.05,
+    starCount: 30,
+  },
+  ic1613: {
+    galaxyId: "ic1613",
+    spiralArms: 0,
+    armPitch: 0,
+    armWidth: 0,
+    coreRadius: 0.7,
+    discRadius: 5,
+    coreColor: "#cfe8ff",
+    armColor: "#d0e8ff",
+    dustAmount: 0.02,
+    starCount: 30,
+  },
+  "sextans-a": {
+    galaxyId: "sextans-a",
+    spiralArms: 0,
+    armPitch: 0,
+    armWidth: 0,
+    coreRadius: 0.7,
+    discRadius: 5,
+    coreColor: "#bfe8ff",
+    armColor: "#cfe8ff",
+    dustAmount: 0.1,
+    starCount: 30,
+  },
+  maffei1: {
+    galaxyId: "maffei1",
+    spiralArms: 0,
+    armPitch: 0,
+    armWidth: 0,
+    coreRadius: 1.5,
+    discRadius: 8,
+    coreColor: "#ffd8a0",
+    armColor: "#ffe0b0",
+    dustAmount: 0.3,
+    starCount: 50,
+  },
+  maffei2: {
+    galaxyId: "maffei2",
+    spiralArms: 2,
+    armPitch: 0.25,
+    armWidth: 0.2,
+    coreRadius: 1.0,
+    discRadius: 7,
+    coreColor: "#ffe0b0",
+    armColor: "#c0d8ff",
+    dustAmount: 0.5,
+    starCount: 45,
+  },
+  "leo-i": {
+    galaxyId: "leo-i",
+    spiralArms: 0,
+    armPitch: 0,
+    armWidth: 0,
+    coreRadius: 0.5,
+    discRadius: 4,
+    coreColor: "#e8d8ff",
+    armColor: "#d8d0ff",
+    dustAmount: 0.02,
+    starCount: 25,
+  },
+  "draco-dwarf": {
+    galaxyId: "draco-dwarf",
+    spiralArms: 0,
+    armPitch: 0,
+    armWidth: 0,
+    coreRadius: 0.5,
+    discRadius: 4,
+    coreColor: "#d8d0ff",
+    armColor: "#d0c8ff",
+    dustAmount: 0.02,
+    starCount: 25,
+  },
 };
+
+/* ============================================================
+ *  M32 (NGC 221) — Andromeda's compact dwarf elliptical
+ *  Stripped-down former spiral, ancient metal-rich stars
+ * ============================================================ */
+
+export const M32_STARS: GalaxyInteriorStar[] = [
+  {
+    id: "m32-core",
+    galaxyId: "m32",
+    name: "M32 NUCLEUS",
+    zh: "M32 核心",
+    color: "#ffe8c0",
+    type: "致密核心",
+    subtype: "cluster",
+    pos: [0, 0, 0],
+    briefing: [
+      "M32 的致密星系核，恒星密度极高，中央含有一个约 250 万倍太阳质量的超大质量黑洞。M32 被认为是曾经更大的旋涡星系被仙女座剥离后的残余核心。",
+      "M32's compact nucleus with extreme stellar density, hosting a ~2.5 million M☉ supermassive black hole. M32 is likely the stripped remnant core of a once-larger spiral galaxy.",
+    ],
+  },
+  {
+    id: "m32-c1",
+    galaxyId: "m32",
+    name: "M32 C1 CEPHEID",
+    zh: "M32 造父变星 C1",
+    color: "#ffe8a0",
+    type: "造父变星",
+    subtype: "Cepheid",
+    pos: [1.2, 0.5, 0.8],
+    briefing: [
+      "M32 中已确认的造父变星之一，周期约 1.78 天。这些变星是测量 M32 距离和年龄的关键探针——哈勃太空望远镜已解析出其中的 RR Lyrae 和造父变星族群。",
+      "One of the confirmed Cepheids in M32, period ~1.78 days. These variables are key probes of M32's distance and age — HST has resolved both RR Lyrae and Cepheid populations here.",
+    ],
+  },
+];
+
+/* ============================================================
+ *  M110 (NGC 205) — Andromeda's dwarf elliptical
+ *  Unusually young for a dE, with dust lanes and blue stars
+ * ============================================================ */
+
+export const M110_STARS: GalaxyInteriorStar[] = [
+  {
+    id: "m110-core",
+    galaxyId: "m110",
+    name: "M110 NUCLEUS",
+    zh: "M110 核心",
+    color: "#fff0d0",
+    type: "矮椭星系核",
+    subtype: "cluster",
+    pos: [0, 0, 0],
+    briefing: [
+      "M110 的核心区域包含异常年轻的蓝色恒星和尘埃带——这在矮椭星系中极为罕见。哈勃望远镜观测显示它仍保留着近期恒星形成的痕迹。",
+      "M110's core region contains unusually young blue stars and dust lanes — extremely rare for a dwarf elliptical. Hubble observations reveal traces of recent star formation.",
+    ],
+  },
+  {
+    id: "m110-nova1999",
+    galaxyId: "m110",
+    name: "M110 NOVA 1999",
+    zh: "M110 1999 年新星",
+    color: "#ff6a4a",
+    type: "经典新星",
+    subtype: "Nova",
+    pos: [1.5, -0.8, 2],
+    briefing: [
+      "1999 年由 R. Johnson 和 M. Modjaz 在 M110 中发现的经典新星，峰值亮度约 +18 等。这是 M110 中少数被独立记录的单颗恒星事件之一。",
+      "A classical nova discovered in M110 in 1999 by R. Johnson & M. Modjaz, peaking at ~+18 magnitude. One of the few individually recorded stellar events in M110.",
+    ],
+  },
+  {
+    id: "m110-gc1",
+    galaxyId: "m110",
+    name: "M110 GC SYSTEM",
+    zh: "M110 球状星团群",
+    color: "#ffe8d0",
+    type: "球状星团系统",
+    subtype: "cluster",
+    pos: [3, 1.5, 4],
+    briefing: [
+      "M110 拥有 8 个已确认的球状星团，质量约 1-10 万倍太阳质量，半光半径约 5-10 pc。它们因高内部密度而在仙女座的潮汐剥离中幸存。",
+      "M110 hosts 8 confirmed globular clusters, ~10^4-10^5 M☉, half-light radii ~5-10 pc. They survive M31's tidal stripping thanks to high internal densities.",
+    ],
+  },
+];
+
+/* ============================================================
+ *  SAGITTARIUS DWARF — Milky Way satellite being torn apart
+ *  Core contains M54 globular cluster, the former nucleus
+ * ============================================================ */
+
+export const SAGITTARIUS_STARS: GalaxyInteriorStar[] = [
+  {
+    id: "sgr-m54",
+    galaxyId: "sagittarius-dwarf",
+    name: "M54 (NGC 6715)",
+    zh: "M54 球状星团",
+    color: "#ffe8d0",
+    type: "核心球状星团",
+    subtype: "cluster",
+    pos: [0, 0, 0],
+    briefing: [
+      "M54 —— 人马座矮星系的核心球状星团，含约 100 万颗恒星，至少 82 颗变星（55 颗 RR Lyrae）。它很可能是人马座矮星系原初星系的核星团，年龄约 130 亿年，几乎与宇宙同岁。",
+      "M54 — the core globular cluster of the Sagittarius Dwarf, ~1 million stars, at least 82 variables (55 RR Lyrae). It is likely the former nuclear star cluster of the Sgr progenitor galaxy, ~13 Gyr old.",
+    ],
+  },
+  {
+    id: "sgr-terzan7",
+    galaxyId: "sagittarius-dwarf",
+    name: "TERZAN 7",
+    zh: "Terzan 7 球状星团",
+    color: "#ffe0b0",
+    type: "球状星团",
+    subtype: "cluster",
+    pos: [2.5, 1.2, 1],
+    briefing: [
+      "Terzan 7 —— 与人马座矮星系关联的球状星团之一，相对年轻（约 80 亿年），金属丰度较高。它正随人马座星流一起被银河系引力撕裂。",
+      "Terzan 7 — one of the globular clusters associated with Sgr dSph, relatively young (~8 Gyr) and metal-rich. It is being torn apart along with the Sagittarius Stream.",
+    ],
+  },
+];
+
+/* ============================================================
+ *  SCULPTOR DWARF — ancient Milky Way satellite
+ *  Purely old stellar population, cornerstone for RR Lyrae studies
+ * ============================================================ */
+
+export const SCULPTOR_STARS: GalaxyInteriorStar[] = [
+  {
+    id: "scl-vara",
+    galaxyId: "sculptor-dwarf",
+    name: "SCULPTOR VAR A",
+    zh: "玉夫座变星 A",
+    color: "#ffe8a0",
+    type: "经典造父变星",
+    subtype: "Cepheid",
+    pos: [1.5, 0.5, 0.8],
+    briefing: [
+      "玉夫座矮星系中由 Harlow Shapley 发现的经典造父变星，周期约 6.5 天。这是第一批在银河系外被确认的造父变星之一，奠定了用变星测量星系距离的基础。",
+      "A classical Cepheid discovered by Harlow Shapley in the Sculptor Dwarf, period ~6.5 days. One of the first Cepheids confirmed outside the Milky Way, foundational for variable-star distance measurements.",
+    ],
+  },
+  {
+    id: "scl-varb",
+    galaxyId: "sculptor-dwarf",
+    name: "SCULPTOR VAR B",
+    zh: "玉夫座变星 B",
+    color: "#ffd8a0",
+    type: "经典造父变星",
+    subtype: "Cepheid",
+    pos: [1.8, -0.3, 1.2],
+    briefing: [
+      "玉夫座矮星系中第二颗经典造父变星，周期约 1.35 天。与 Var A 一起，它们证明玉夫座矮星系是一个独立的恒星系统而非银河系内的星团。",
+      "The second classical Cepheid in the Sculptor Dwarf, period ~1.35 days. Together with Var A, they proved Sculptor is a separate stellar system, not a Galactic cluster.",
+    ],
+  },
+  {
+    id: "scl-mag29",
+    galaxyId: "sculptor-dwarf",
+    name: "MAG29 CARBON STAR",
+    zh: "MAG29 碳星",
+    color: "#ff7040",
+    type: "碳星",
+    subtype: "RSG",
+    pos: [2.2, 0.8, -0.5],
+    briefing: [
+      "玉夫座矮星系中一颗明亮的碳星（AGB 星），编号 MAG29（Mauron 2004）。这类恒星处于生命末期，正在将重元素抛入星际空间。",
+      "A bright carbon star (AGB) in the Sculptor Dwarf, catalogued as MAG29 (Mauron 2004). Such stars are in their final stages, ejecting heavy elements into interstellar space.",
+    ],
+  },
+];
+
+/* ============================================================
+ *  FORNAX DWARF — Milky Way satellite with 6 globular clusters
+ *  The most GC-rich dwarf spheroidal in the Local Group
+ * ============================================================ */
+
+export const FORNAX_STARS: GalaxyInteriorStar[] = [
+  {
+    id: "for-gc3",
+    galaxyId: "fornax-dwarf",
+    name: "FORNAX 3",
+    zh: "天炉座 3 号星团",
+    color: "#ffe8d0",
+    type: "球状星团",
+    subtype: "cluster",
+    pos: [1.5, 0.5, 0.8],
+    briefing: [
+      "天炉座矮星系中最亮的球状星团之一。天炉座是本星系群中拥有球状星团最多的矮椭球星系——共有 6 个，包括最近重新发现的 Fornax 6。",
+      "One of the brightest globular clusters in the Fornax Dwarf, which hosts the most GCs of any Local Group dwarf spheroidal — 6 in total, including the recently rediscovered Fornax 6.",
+    ],
+  },
+  {
+    id: "for-gc4",
+    galaxyId: "fornax-dwarf",
+    name: "FORNAX 4",
+    zh: "天炉座 4 号星团",
+    color: "#ffe0b0",
+    type: "核星团候选",
+    subtype: "cluster",
+    pos: [0.3, 0.1, 0.2],
+    briefing: [
+      "Fornax 4 —— 位于天炉座矮星系中心附近，比其它星团更年轻、金属更丰富。它可能是天炉座矮星系的原初核星团。",
+      "Fornax 4 — located near the galaxy center, younger and more metal-rich than the other GCs. It may be the original nuclear star cluster of the Fornax Dwarf.",
+    ],
+  },
+];
+
+/* ============================================================
+ *  NGC 185 — Andromeda satellite, unusual dE with AGN
+ *  Only known Seyfert galaxy in the Local Group
+ * ============================================================ */
+
+export const NGC185_STARS: GalaxyInteriorStar[] = [
+  {
+    id: "ngc185-nuc",
+    galaxyId: "ngc185",
+    name: "NGC 185 NUCLEUS",
+    zh: "NGC 185 核心",
+    color: "#ffe8c0",
+    type: "活动星系核",
+    subtype: "cluster",
+    pos: [0, 0, 0],
+    briefing: [
+      "NGC 185 的核心含有一个 2 型 Seyfert 活动星系核——这是本星系群中唯一已知的 Seyfert 星系。它也是距离我们最近的 Seyfert 星系，中心有一个活跃的超大质量黑洞。",
+      "NGC 185's nucleus hosts a Type 2 Seyfert AGN — the only known Seyfert in the Local Group and the closest Seyfert to Earth. An active supermassive black hole lurks at its center.",
+    ],
+  },
+  {
+    id: "ngc185-snr",
+    galaxyId: "ngc185",
+    name: "NGC 185 SNR",
+    zh: "NGC 185 超新星遗迹",
+    color: "#ff50a0",
+    type: "超新星遗迹",
+    subtype: "SNR",
+    pos: [0.8, -0.5, 0.3],
+    briefing: [
+      "NGC 185 中心附近的超新星遗迹，与弥漫的弧形发射星云相关联。这个遗迹是 NGC 185 近期恒星形成活动的证据——在矮椭星系中极为罕见。",
+      "A supernova remnant near NGC 185's center, associated with a diffuse arc-like nebula. Evidence of recent star formation in this dwarf elliptical — extremely rare for its type.",
+    ],
+  },
+];
+
+/* ============================================================
+ *  NGC 147 — Andromeda satellite, quiet ancient dE
+ *  Star formation ceased much earlier than its twin NGC 185
+ * ============================================================ */
+
+export const NGC147_STARS: GalaxyInteriorStar[] = [
+  {
+    id: "ngc147-nuc",
+    galaxyId: "ngc147",
+    name: "NGC 147 NUCLEUS",
+    zh: "NGC 147 核心",
+    color: "#f0e8d8",
+    type: "古老恒星核",
+    subtype: "cluster",
+    pos: [0, 0, 0],
+    briefing: [
+      "NGC 147 的核心——与它的孪生星系 NGC 185 截然不同，NGC 147 的恒星形成在数十亿年前就已停止。它是一颗安静、古老的矮椭星系，没有气体、尘埃或年轻恒星。",
+      "NGC 147's nucleus — unlike its twin NGC 185, star formation here ceased billions of years ago. A quiet, ancient dwarf elliptical with no gas, dust, or young stars.",
+    ],
+  },
+];
+
+/* ============================================================
+ *  IC 1613 — isolated irregular dwarf, "cleanest" galaxy
+ *  Extremely low dust, cornerstone of cosmic distance ladder
+ * ============================================================ */
+
+export const IC1613_STARS: GalaxyInteriorStar[] = [
+  {
+    id: "ic1613-nova99",
+    galaxyId: "ic1613",
+    name: "IC 1613 NOVA 1999",
+    zh: "IC 1613 1999 年新星",
+    color: "#ff6a4a",
+    type: "经典新星",
+    subtype: "Nova",
+    pos: [1.2, 0.3, 0.8],
+    briefing: [
+      "1999 年由 KAIT 自动望远镜在 IC 1613 中发现的经典新星。IC 1613 是本星系群中尘埃最少的星系之一，几乎完全透明，是精确光度测量的理想场所。",
+      "A classical nova discovered in IC 1613 in 1999 by the KAIT robotic telescope. IC 1613 is among the least dusty galaxies in the Local Group, nearly transparent — ideal for precision photometry.",
+    ],
+  },
+  {
+    id: "ic1613-ceph",
+    galaxyId: "ic1613",
+    name: "IC 1613 CEPHEIDS",
+    zh: "IC 1613 造父变星群",
+    color: "#ffe8a0",
+    type: "造父变星群",
+    subtype: "Cepheid",
+    pos: [0.5, -0.4, 1.5],
+    briefing: [
+      "IC 1613 中已发现 49 颗经典造父变星（ACS LCID 项目），是宇宙距离阶梯的基石之一。连同 90 颗 RR Lyrae 变星，IC 1613 是精确校准河外距离的关键天体。",
+      "49 classical Cepheids discovered in IC 1613 (ACS LCID Project), a cornerstone of the cosmic distance ladder. Together with 90 RR Lyrae stars, IC 1613 is key to calibrating extragalactic distances.",
+    ],
+  },
+];
+
+/* ============================================================
+ *  SEXTANS A — small irregular at Local Group edge
+ *  Boxy morphology from supernova-driven star formation
+ * ============================================================ */
+
+export const SEXTANS_A_STARS: GalaxyInteriorStar[] = [
+  {
+    id: "sexa-gc1",
+    galaxyId: "sextans-a",
+    name: "SEXTANS A GC-1",
+    zh: "六分仪座 A 球状星团",
+    color: "#ffe8d0",
+    type: "球状星团",
+    subtype: "cluster",
+    pos: [1.5, 0.3, 0.5],
+    briefing: [
+      "六分仪座 A 中唯一确认的古老贫金属球状星团，绝对星等约 -7.85，质量约 16 万倍太阳质量。位于星系中心西南约 1.8 kpc 处。",
+      "The only confirmed old, metal-poor globular cluster in Sextans A, M_V ~ -7.85, mass ~1.6×10^5 M☉. Located ~1.8 kpc SW of the galaxy center.",
+    ],
+  },
+  {
+    id: "sexa-ob",
+    galaxyId: "sextans-a",
+    name: "SEXTANS A OB ASSOC",
+    zh: "六分仪座 A OB 星协",
+    color: "#b0d8ff",
+    type: "OB 星协",
+    subtype: "cluster",
+    pos: [0.8, -0.5, 1.2],
+    briefing: [
+      "六分仪座 A 中明亮的 OB 星协——年轻炽热的大质量恒星群。HST 紫外波段观测已编录了其中质量大于 8 倍太阳质量的恒星，揭示了该星系的活跃恒星形成历史。",
+      "Bright OB associations in Sextans A — clusters of young, hot, massive stars. HST UV photometry has catalogued stars >8 M☉, revealing the galaxy's active star formation history.",
+    ],
+  },
+];
+
+/* ============================================================
+ *  MAFFEI 1 — giant lenticular, 99.5% obscured by Milky Way dust
+ *  Nearest giant elliptical, discovered only in 1968 (infrared)
+ * ============================================================ */
+
+export const MAFFEI1_STARS: GalaxyInteriorStar[] = [
+  {
+    id: "maf1-core",
+    galaxyId: "maffei1",
+    name: "MAFFEI 1 NUCLEUS",
+    zh: "马费 1 核心",
+    color: "#ffd8a0",
+    type: "巨型透镜星系核",
+    subtype: "cluster",
+    pos: [0, 0, 0],
+    briefing: [
+      "马费 1 星系的核心——被银河系盘面尘埃遮挡了 99.5% 的光线，直到 1968 年才在红外波段被发现。它是距离我们最近的巨型椭圆/透镜星系，拥有约 1100 个球状星团。",
+      "Maffei 1's nucleus — 99.5% obscured by Milky Way dust, discovered only in 1968 via infrared. It is the nearest giant elliptical/lenticular to us, hosting ~1100 globular clusters.",
+    ],
+  },
+];
+
+/* ============================================================
+ *  MAFFEI 2 — intermediate spiral, also obscured
+ *  Barred spiral with starburst activity
+ * ============================================================ */
+
+export const MAFFEI2_STARS: GalaxyInteriorStar[] = [
+  {
+    id: "maf2-core",
+    galaxyId: "maffei2",
+    name: "MAFFEI 2 NUCLEUS",
+    zh: "马费 2 核心",
+    color: "#ffe0b0",
+    type: "星暴星系核",
+    subtype: "cluster",
+    pos: [0, 0, 0],
+    briefing: [
+      "马费 2 星系的核心——同样被银河系尘埃深度遮挡的棒旋星系。红外观测显示其中心有活跃的星暴活动，恒星形成率远高于普通旋涡星系。",
+      "Maffei 2's nucleus — a barred spiral also deeply obscured by Milky Way dust. Infrared observations reveal active starburst activity at its center, with star formation rates far above normal spirals.",
+    ],
+  },
+];
+
+/* ============================================================
+ *  LEO I — distant Milky Way satellite
+ *  Metal-poor system with dominant intermediate-age population
+ * ============================================================ */
+
+export const LEO_I_STARS: GalaxyInteriorStar[] = [
+  {
+    id: "leo1-rrlyr",
+    galaxyId: "leo-i",
+    name: "LEO I RR LYRAE",
+    zh: "狮子座 I RR Lyrae 群",
+    color: "#ffe8a0",
+    type: "RR Lyrae 变星群",
+    subtype: "Cepheid",
+    pos: [0.5, 0.2, 0.3],
+    briefing: [
+      "狮子座 I 矮星系中已确认的 47 颗 RR Lyrae 变星（Held 2001），是测量该星系距离和年龄的关键探针。狮子座 I 位于亮星轩辕十四（狮子座 α）仅 20 角分处，观测难度极大。",
+      "47 confirmed RR Lyrae variables in Leo I (Held 2001), key probes of the galaxy's distance and age. Leo I lies only 20 arcmin from the bright star Regulus, making observations challenging.",
+    ],
+  },
+];
+
+/* ============================================================
+ *  DRACO DWARF — extremely faint, metal-poor Milky Way satellite
+ *  "Flawless dwarf galaxy" — almost entirely ancient stars
+ * ============================================================ */
+
+export const DRACO_STARS: GalaxyInteriorStar[] = [
+  {
+    id: "draco-rrlyr",
+    galaxyId: "draco-dwarf",
+    name: "DRACO RR LYRAE",
+    zh: "天龙座 RR Lyrae 群",
+    color: "#ffe8a0",
+    type: "RR Lyrae 变星群",
+    subtype: "Cepheid",
+    pos: [0.5, 0.2, 0.3],
+    briefing: [
+      "天龙座矮星系中已确认的 268 颗 RR Lyrae 变星——包括 173 颗 RRab、24 颗 RRc 和 15 颗双模 RRd。天龙座是金属丰度极低（[Fe/H] ~ -2.0）的'完美矮星系'，几乎所有恒星都诞生于百亿年前。",
+      "268 RR Lyrae variables confirmed in the Draco Dwarf — 173 RRab, 24 RRc, 15 double-mode RRd. Draco is a 'flawless dwarf galaxy' with extremely low metallicity ([Fe/H] ~ -2.0), almost all stars born 10+ Gyr ago.",
+    ],
+  },
+  {
+    id: "draco-acep",
+    galaxyId: "draco-dwarf",
+    name: "DRACO ANOM CEPHEIDS",
+    zh: "天龙座异常造父变星",
+    color: "#d8c0ff",
+    type: "异常造父变星",
+    subtype: "Cepheid",
+    pos: [0.8, -0.3, 0.6],
+    briefing: [
+      "天龙座矮星系中已确认的 8 颗异常造父变星，这些中质量（2-5 M☉）变星是天龙座中少数比主流恒星年轻的星体，暗示约 10-20 亿年前有过微弱恒星形成。",
+      "8 confirmed Anomalous Cepheids in the Draco Dwarf. These intermediate-mass (2-5 M☉) variables are among the few stars younger than the dominant ancient population, hinting at weak star formation ~1-2 Gyr ago.",
+    ],
+  },
+];
 
 /* ---- lookup tables ---- */
 
@@ -808,6 +1404,19 @@ export const GALAXY_INTERIOR_STARS_BY_GALAXY: Record<string, GalaxyInteriorStar[
   smc: SMC_STARS,
   ic10: IC10_STARS,
   ngc6822: NGC6822_STARS,
+  m32: M32_STARS,
+  m110: M110_STARS,
+  "sagittarius-dwarf": SAGITTARIUS_STARS,
+  "sculptor-dwarf": SCULPTOR_STARS,
+  "fornax-dwarf": FORNAX_STARS,
+  ngc185: NGC185_STARS,
+  ngc147: NGC147_STARS,
+  ic1613: IC1613_STARS,
+  "sextans-a": SEXTANS_A_STARS,
+  maffei1: MAFFEI1_STARS,
+  maffei2: MAFFEI2_STARS,
+  "leo-i": LEO_I_STARS,
+  "draco-dwarf": DRACO_STARS,
 };
 
 export const GALAXY_INTERIOR_PLANETS_BY_GALAXY: Record<string, GalaxyInteriorPlanet[]> = {
@@ -817,4 +1426,17 @@ export const GALAXY_INTERIOR_PLANETS_BY_GALAXY: Record<string, GalaxyInteriorPla
   smc: SMC_PLANETS,
   ic10: IC10_PLANETS,
   ngc6822: NGC6822_PLANETS,
+  m32: [],
+  m110: [],
+  "sagittarius-dwarf": [],
+  "sculptor-dwarf": [],
+  "fornax-dwarf": [],
+  ngc185: [],
+  ngc147: [],
+  ic1613: [],
+  "sextans-a": [],
+  maffei1: [],
+  maffei2: [],
+  "leo-i": [],
+  "draco-dwarf": [],
 };

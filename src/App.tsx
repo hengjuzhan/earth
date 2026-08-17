@@ -15,7 +15,6 @@ import {
   exoPlanetById, neighborGalaxyById, planetById, starById,
   type GalaxyStar, type NeighborGalaxy, type Planet,
 } from "./data/planets";
-import { localGroupGalaxyById, type LocalGroupGalaxy } from "./data/localGroup";
 import { GALAXY_INTERIOR_STARS_BY_GALAXY, GALAXY_INTERIOR_PLANETS_BY_GALAXY, type GalaxyInteriorStar, type GalaxyInteriorPlanet } from "./data/galaxyInteriors";
 
 /** search all galaxy interior star arrays for a star by id */
@@ -64,7 +63,6 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedPlanetId, setSelectedPlanetId] = useState<string | null>(null);
   const [galaxy, setGalaxy] = useState<NeighborGalaxy | null>(null);
-  const [localGalaxy, setLocalGalaxy] = useState<LocalGroupGalaxy | null>(null);
   const [exoPlanet, setExoPlanet] = useState<Planet | null>(null);
   const [galaxyInteriorStar, setGalaxyInteriorStar] = useState<GalaxyInteriorStar | null>(null);
   const [galaxyInteriorPlanet, setGalaxyInteriorPlanet] = useState<GalaxyInteriorPlanet | null>(null);
@@ -110,7 +108,7 @@ export default function App() {
         : null;
   const heroVisible =
     !mission && !planet && !satId && !ufoTrack &&
-    bodyMode !== "system" && bodyMode !== "galaxy" && bodyMode !== "localGroup";
+    bodyMode !== "system" && bodyMode !== "galaxy";
 
   const nodeSpecs: NodeSpec[] = MISSIONS.filter((m) => m.status !== "LOCKED").map((m) => ({
     id: m.id,
@@ -258,7 +256,7 @@ export default function App() {
 
   const handleBodyMode = useCallback((mode: BodyMode) => {
     const eng = engineRef.current;
-    /* GALAXY INTERIOR — enter from a focused local group galaxy */
+    /* GALAXY INTERIOR — enter from a focused neighbour galaxy in the galaxy view */
     if (mode === "galaxyInterior") {
       eng?.switchBody("galaxyInterior");
       setBodyMode("galaxyInterior");
@@ -268,7 +266,6 @@ export default function App() {
       eng?.setUfoTrack(null);
       setStar(null);
       setGalaxy(null);
-      setLocalGalaxy(null);
       setGalaxyInteriorStar(null);
       setGalaxyInteriorPlanet(null);
       setInteriorSystemStar(null);
@@ -292,22 +289,6 @@ export default function App() {
       setGalaxyInteriorPlanet(null);
       setInteriorGalaxyId(null);
       setInteriorSystemStar(null);
-    }
-    /* LOCAL GROUP — one zoom level past the galaxy */
-    if (mode === "localGroup") {
-      eng?.switchBody("localGroup");
-      setBodyMode("localGroup");
-      setSelectedPlanetId(null);
-      setSatId(null);
-      setUfoTrack(null);
-      eng?.setUfoTrack(null);
-      setStar(null);
-      setLocalGalaxy(null);
-      return;
-    }
-    if (bodyMode === "localGroup") {
-      setLocalGalaxy(null);
-      setGalaxyInteriorStar(null);
     }
     /* GALAXY — zoom out to the milky way */
     if (mode === "galaxy") {
@@ -379,6 +360,15 @@ export default function App() {
     const g = neighborGalaxyById(id);
     if (!g) return;
     audio.lock();
+    /* clicking an already-focused galaxy enters its interior (solar-system-like) */
+    if (galaxy?.id === id && GALAXY_INTERIOR_STARS_BY_GALAXY[id]) {
+      handleBodyMode("galaxyInterior");
+      pushLog(
+        L(`◈ 进入 ${g.zh} · 恒星与行星展开`, `◈ ENTERING ${g.name} · STARS & PLANETS UNFOLD`),
+        "ok"
+      );
+      return;
+    }
     setGalaxy(g);
     setStar(null);
     setExoPlanet(null);
@@ -388,43 +378,7 @@ export default function App() {
       L(`🌌 跃迁至 ${g.zh}（${g.distance}）`, `🌌 WARPING TO ${g.name} (${g.distance})`),
       "ok"
     );
-  }, [L, pushLog]);
-
-  /* ---------- local group galaxies (one zoom past the Milky Way) ---------- */
-
-  const handleLocalGalaxyClick = useCallback((id: string) => {
-    const lg = localGroupGalaxyById(id);
-    if (!lg) return;
-    audio.lock();
-    if (lg.role === "home") {
-      /* the Milky Way itself — dive back into the spiral view */
-      handleBodyMode("galaxy");
-      pushLog(
-        L(`🌌 返回银河系 · ${lg.zh}`, `🌌 BACK INTO THE GALAXY · ${lg.name}`),
-        "info"
-      );
-      return;
-    }
-    /* if already focused, enter the galaxy interior */
-    if (localGalaxy?.id === id) {
-      handleBodyMode("galaxyInterior");
-      pushLog(
-        L(`◈ 进入 ${lg.zh} · 恒星与行星展开`, `◈ ENTERING ${lg.name} · STARS & PLANETS UNFOLD`),
-        "ok"
-      );
-      return;
-    }
-    setLocalGalaxy(lg);
-    setGalaxy(null);
-    setStar(null);
-    setSelectedPlanetId(null);
-    setGalaxyInteriorStar(null);
-    engineRef.current?.focusLocalGalaxy(id);
-    pushLog(
-      L(`✧ 聚焦 ${lg.zh} · 本星系群（${lg.distance}）`, `✧ FOCUSING ${lg.name} · LOCAL GROUP (${lg.distance})`),
-      "ok"
-    );
-  }, [handleBodyMode, L, pushLog, localGalaxy]);
+  }, [L, pushLog, galaxy, handleBodyMode]);
 
   /* ---------- galaxy interior stars ---------- */
 
@@ -434,7 +388,6 @@ export default function App() {
     audio.lock();
     setGalaxyInteriorStar(star);
     setGalaxy(null);
-    setLocalGalaxy(null);
     setStar(null);
     setSelectedPlanetId(null);
     /* drill INTO the star's planetary system — solar-system-like sub-level */
@@ -456,7 +409,6 @@ export default function App() {
     setGalaxyInteriorPlanet(planet);
     setGalaxyInteriorStar(null);
     setGalaxy(null);
-    setLocalGalaxy(null);
     setStar(null);
     setSelectedPlanetId(null);
     engineRef.current?.focusGalaxyInteriorPlanet(id);
@@ -499,14 +451,12 @@ export default function App() {
   /* release any focused celestial body */
   const handleWide = useCallback(() => {
     setGalaxy(null);
-    setLocalGalaxy(null);
     setExoPlanet(null);
     setStar(null);
     setGalaxyInteriorStar(null);
     setGalaxyInteriorPlanet(null);
     setSelectedPlanetId(null);
     engineRef.current?.clearGalaxyFocus();
-    engineRef.current?.clearLocalGalaxyFocus();
     engineRef.current?.clearGalaxyInteriorFocus();
     engineRef.current?.clearPlanetFocus();
   }, []);
@@ -521,7 +471,6 @@ export default function App() {
     setSatId(null);
     setUfoTrack(null);
     setGalaxy(null);
-    setLocalGalaxy(null);
     setGalaxyInteriorStar(null);
     setGalaxyInteriorPlanet(null);
     engineRef.current?.clearSatFocus();
@@ -705,12 +654,6 @@ export default function App() {
           pushLog(L("◈ 跃迁至银河系视图 · 星海展开", "◈ WARPING TO GALACTIC VIEW · STARFIELDS UNFOLD"), "info");
         }
         break;
-      case "localGroup":
-        if (bodyMode !== "localGroup") {
-          handleBodyMode("localGroup");
-          pushLog(L("✧ 升入本星系群视图 · 邻居星系浮现", "✧ ASCENDING TO LOCAL GROUP · NEIGHBORS RESOLVE"), "info");
-        }
-        break;
       case "galaxyInterior":
         if (bodyMode !== "galaxyInterior") {
           handleBodyMode("galaxyInterior");
@@ -772,13 +715,10 @@ export default function App() {
       case "/galaxy":
         handleBodyMode("galaxy");
         return L("> 已跃迁至银河系视景", "> WARPING TO GALACTIC VIEW");
-      case "/localgroup":
-        handleBodyMode("localGroup");
-        return L("> 已进入本星系群视景", "> ENTERING LOCAL GROUP VIEW");
       case "/galaxyinterior":
       case "/enter":
         handleBodyMode("galaxyInterior");
-        return L("> 正在进入星系内部 · 先在本星系群中聚焦一个星系", "> ENTERING GALAXY INTERIOR · FOCUS A GALAXY IN LOCAL GROUP FIRST");
+        return L("> 正在进入星系内部 · 先在银河系视图中聚焦一个星系", "> ENTERING GALAXY INTERIOR · FOCUS A GALAXY FIRST");
       case "/moon":
         if (engineRef.current?.launchMoonMission()) {
           pushLog(L("登月计划启动 · 月球登陆器从发射场升空", "MOON PROGRAM STARTED · LANDER LIFTING OFF"), "ok");
@@ -837,7 +777,6 @@ export default function App() {
       else if (e.key === "2") handleBodyMode("moon");
       else if (e.key === "3") handleBodyMode("system");
       else if (e.key === "4") handleBodyMode("galaxy");
-      else if (e.key === "5") handleBodyMode("localGroup");
       else if (e.key === "6") handleBodyMode("galaxyInterior");
       else if (e.key === "+" || e.key === "=") engineRef.current?.zoomBy(1);
       else if (e.key === "-" || e.key === "_") engineRef.current?.zoomBy(-1);
@@ -848,7 +787,7 @@ export default function App() {
       else if (e.key === "w" || e.key === "W") handleWeather("wind");
       else if (e.key === "m" || e.key === "M") handleWeather("shower");
       else if (e.key === "Escape") {
-        /* layered back: star system → galaxy panorama → local group → earth */
+        /* layered back: star system → galaxy panorama → galaxy ring view → earth */
         const eng = engineRef.current;
         if (eng?.isInInteriorSystem()) {
           eng.exitInteriorStarSystem();
@@ -856,7 +795,7 @@ export default function App() {
           setGalaxyInteriorPlanet(null);
           pushLog(L("◂ 返回星系全景", "◂ BACK TO GALAXY PANORAMA"), "info");
         } else if (bodyMode === "galaxyInterior") {
-          handleBodyMode("localGroup");
+          handleBodyMode("galaxy");
         } else {
           handleExit();
         }
@@ -903,7 +842,6 @@ export default function App() {
           onStarClick={handleStarClick}
           onGalaxyClick={handleGalaxyClick}
           onExoPlanetClick={handleExoPlanetClick}
-          onLocalGalaxyClick={handleLocalGalaxyClick}
           onGalaxyInteriorStarClick={handleGalaxyInteriorStarClick}
           onGalaxyInteriorPlanetClick={handleGalaxyInteriorPlanetClick}
         />
@@ -951,7 +889,7 @@ export default function App() {
       <IntelPanel
         lang={lang}
         star={star}
-        galaxy={localGalaxy ?? galaxy}
+        galaxy={galaxy}
         planet={exoPlanet ?? planet}
         interiorStar={galaxyInteriorStar}
         interiorPlanet={galaxyInteriorPlanet}
@@ -981,8 +919,6 @@ export default function App() {
         >
           <span className="text-[9px] tracking-[0.22em]" style={{ color: hover.color }}>
             ◈ {(() => {
-              const lgz = localGroupGalaxyById(hover.id);
-              if (lgz) return lang === "zh" ? lgz.zh : lgz.name;
               const gis = findGalaxyInteriorStar(hover.id);
               if (gis) return lang === "zh" ? gis.zh : gis.name;
               const gip = findGalaxyInteriorPlanet(hover.id);

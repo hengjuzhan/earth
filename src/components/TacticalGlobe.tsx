@@ -19,7 +19,6 @@ interface Props {
   onStarClick?: (id: string) => void;
   onGalaxyClick?: (id: string) => void;
   onExoPlanetClick?: (id: string) => void;
-  onLocalGalaxyClick?: (id: string) => void;
   onGalaxyInteriorStarClick?: (id: string) => void;
   onGalaxyInteriorPlanetClick?: (id: string) => void;
 }
@@ -42,7 +41,6 @@ export default function TacticalGlobe({
   onStarClick,
   onGalaxyClick,
   onExoPlanetClick,
-  onLocalGalaxyClick,
   onGalaxyInteriorStarClick,
   onGalaxyInteriorPlanetClick,
 }: Props) {
@@ -50,13 +48,13 @@ export default function TacticalGlobe({
   const cbRef = useRef({
     onReady, onFps, onHover, onNodeClick, onPlanetClick, onAlien,
     onSatelliteClick, onMoonClick, onUfoTelemetry, onRocketEvent, onStats, onMoonLand,
-    onMoonMissionChange, onStarClick, onGalaxyClick, onExoPlanetClick, onLocalGalaxyClick,
+    onMoonMissionChange, onStarClick, onGalaxyClick, onExoPlanetClick,
     onGalaxyInteriorStarClick, onGalaxyInteriorPlanetClick,
   });
   cbRef.current = {
     onReady, onFps, onHover, onNodeClick, onPlanetClick, onAlien,
     onSatelliteClick, onMoonClick, onUfoTelemetry, onRocketEvent, onStats, onMoonLand,
-    onMoonMissionChange, onStarClick, onGalaxyClick, onExoPlanetClick, onLocalGalaxyClick,
+    onMoonMissionChange, onStarClick, onGalaxyClick, onExoPlanetClick,
     onGalaxyInteriorStarClick, onGalaxyInteriorPlanetClick,
   };
 
@@ -80,7 +78,6 @@ export default function TacticalGlobe({
       onStarClick: (id) => cbRef.current.onStarClick?.(id),
       onGalaxyClick: (id) => cbRef.current.onGalaxyClick?.(id),
       onExoPlanetClick: (id) => cbRef.current.onExoPlanetClick?.(id),
-      onLocalGalaxyClick: (id) => cbRef.current.onLocalGalaxyClick?.(id),
       onGalaxyInteriorStarClick: (id) => cbRef.current.onGalaxyInteriorStarClick?.(id),
       onGalaxyInteriorPlanetClick: (id) => cbRef.current.onGalaxyInteriorPlanetClick?.(id),
     });

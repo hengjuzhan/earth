@@ -1102,7 +1102,6 @@ export class GlobeEngine {
       onStarClick?: (id: string) => void;
       onGalaxyClick?: (id: string) => void;
       onExoPlanetClick?: (id: string) => void;
-      onLocalGalaxyClick?: (id: string) => void;
       onGalaxyInteriorStarClick?: (id: string) => void;
       onGalaxyInteriorPlanetClick?: (id: string) => void;
     } = {}
@@ -1140,7 +1139,7 @@ export class GlobeEngine {
       45,
       container.clientWidth / Math.max(container.clientHeight, 1),
       0.1,
-      /* the Local Group's deepest background sits at radius ~1300. If the
+      /* the deep galaxy-interior backdrop sits beyond radius 1000. If the
          far plane sits at 1000 (was Milky Way only), diving into a galaxy
          clips the whole backdrop away → black screen */
       4000
@@ -6002,7 +6001,7 @@ export class GlobeEngine {
        object under the finger even if it drifted a few px since pointerdown */
     if (wasClick) this.updateHover(e);
     if (this.annihilation) return;
-    /* click (not drag) → galaxy interior stars · galaxy interior planets · local group · galaxy stars · UFO · node · celestial body */
+    /* click (not drag) → galaxy interior stars · galaxy interior planets · galaxy stars · UFO · node · celestial body */
     if (wasClick && this.mode === "galaxyInterior" && this.interiorSystemStarId && this.hoverInteriorSysPlanet && this.onGalaxyInteriorPlanetClick) {
       this.onGalaxyInteriorPlanetClick(this.hoverInteriorSysPlanet);
       return;
@@ -6881,7 +6880,7 @@ export class GlobeEngine {
       }
     }
 
-    /* camera — states: star focus · exoplanet focus · galaxy focus · local group · flight · satellite · moon · planet · free */
+    /* camera — states: star focus · exoplanet focus · galaxy focus · flight · satellite · moon · planet · free */
     if (this.starFocusId && this.mode === "galaxy" && !this.flight) {
       const m = this.starMarkers.find((x) => x.id === this.starFocusId);
       if (m) {

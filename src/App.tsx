@@ -14,6 +14,7 @@ import {
   exoPlanetById, neighborGalaxyById, planetById, starById,
   type GalaxyStar, type NeighborGalaxy, type Planet,
 } from "./data/planets";
+import { localGroupGalaxyById, type LocalGroupGalaxy } from "./data/localGroup";
 import { PROFILE } from "./data/profile";
 import { ALIEN_MSGS, PLANET_ZH, t, type Lang } from "./data/i18n";
 import { audio } from "./audio/tacticalAudio";
@@ -43,6 +44,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedPlanetId, setSelectedPlanetId] = useState<string | null>(null);
   const [galaxy, setGalaxy] = useState<NeighborGalaxy | null>(null);
+  const [localGalaxy, setLocalGalaxy] = useState<LocalGroupGalaxy | null>(null);
   const [exoPlanet, setExoPlanet] = useState<Planet | null>(null);
 
   const [flash, setFlash] = useState(false);
@@ -84,7 +86,7 @@ export default function App() {
         : null;
   const heroVisible =
     !mission && !planet && !satId && !ufoTrack &&
-    bodyMode !== "system" && bodyMode !== "galaxy";
+    bodyMode !== "system" && bodyMode !== "galaxy" && bodyMode !== "localGroup";
 
   const nodeSpecs: NodeSpec[] = MISSIONS.filter((m) => m.status !== "LOCKED").map((m) => ({
     id: m.id,
@@ -232,6 +234,21 @@ export default function App() {
 
   const handleBodyMode = useCallback((mode: BodyMode) => {
     const eng = engineRef.current;
+    /* LOCAL GROUP — one zoom level past the galaxy */
+    if (mode === "localGroup") {
+      eng?.switchBody("localGroup");
+      setBodyMode("localGroup");
+      setSelectedPlanetId(null);
+      setSatId(null);
+      setUfoTrack(null);
+      eng?.setUfoTrack(null);
+      setStar(null);
+      setLocalGalaxy(null);
+      return;
+    }
+    if (bodyMode === "localGroup") {
+      setLocalGalaxy(null);
+    }
     /* GALAXY — zoom out to the milky way */
     if (mode === "galaxy") {
       eng?.switchBody("galaxy");
@@ -313,6 +330,32 @@ export default function App() {
     );
   }, [L, pushLog]);
 
+  /* ---------- local group galaxies (one zoom past the Milky Way) ---------- */
+
+  const handleLocalGalaxyClick = useCallback((id: string) => {
+    const lg = localGroupGalaxyById(id);
+    if (!lg) return;
+    audio.lock();
+    if (lg.role === "home") {
+      /* the Milky Way itself — dive back into the spiral view */
+      handleBodyMode("galaxy");
+      pushLog(
+        L(`🌌 返回银河系 · ${lg.zh}`, `🌌 BACK INTO THE GALAXY · ${lg.name}`),
+        "info"
+      );
+      return;
+    }
+    setLocalGalaxy(lg);
+    setGalaxy(null);
+    setStar(null);
+    setSelectedPlanetId(null);
+    engineRef.current?.focusLocalGalaxy(id);
+    pushLog(
+      L(`✧ 聚焦 ${lg.zh} · 本星系群（${lg.distance}）`, `✧ FOCUSING ${lg.name} · LOCAL GROUP (${lg.distance})`),
+      "ok"
+    );
+  }, [handleBodyMode, L, pushLog]);
+
   /* ---------- exoplanets inside neighbour galaxies ---------- */
 
   const handleExoPlanetClick = useCallback((id: string) => {
@@ -346,10 +389,12 @@ export default function App() {
   /* release any focused celestial body */
   const handleWide = useCallback(() => {
     setGalaxy(null);
+    setLocalGalaxy(null);
     setExoPlanet(null);
     setStar(null);
     setSelectedPlanetId(null);
     engineRef.current?.clearGalaxyFocus();
+    engineRef.current?.clearLocalGalaxyFocus();
     engineRef.current?.clearPlanetFocus();
   }, []);
 
@@ -362,6 +407,8 @@ export default function App() {
     setSelectedPlanetId(null);
     setSatId(null);
     setUfoTrack(null);
+    setGalaxy(null);
+    setLocalGalaxy(null);
     engineRef.current?.clearSatFocus();
     engineRef.current?.selectMission(null);
     setBodyMode("earth");
@@ -543,6 +590,12 @@ export default function App() {
           pushLog(L("◈ 跃迁至银河系视图 · 星海展开", "◈ WARPING TO GALACTIC VIEW · STARFIELDS UNFOLD"), "info");
         }
         break;
+      case "localGroup":
+        if (bodyMode !== "localGroup") {
+          handleBodyMode("localGroup");
+          pushLog(L("✧ 升入本星系群视图 · 邻居星系浮现", "✧ ASCENDING TO LOCAL GROUP · NEIGHBORS RESOLVE"), "info");
+        }
+        break;
     }
   }, [bodyMode, handleBodyMode, pushLog, L]);
 
@@ -598,6 +651,9 @@ export default function App() {
       case "/galaxy":
         handleBodyMode("galaxy");
         return L("> 已跃迁至银河系视景", "> WARPING TO GALACTIC VIEW");
+      case "/localgroup":
+        handleBodyMode("localGroup");
+        return L("> 已进入本星系群视景", "> ENTERING LOCAL GROUP VIEW");
       case "/moon":
         if (engineRef.current?.launchMoonMission()) {
           pushLog(L("登月计划启动 · 月球登陆器从发射场升空", "MOON PROGRAM STARTED · LANDER LIFTING OFF"), "ok");
@@ -637,7 +693,7 @@ export default function App() {
       default:
         return L(`> 未知指令「${cmd}」· /help 查看全部`, `> UNKNOWN COMMAND "${cmd}" · /help FOR LIST`);
     }
-  }, [L, handleLaunch, rocketActive, handleDock, applyLight, applyLab, handleWeather, ufoTrack, handleSatelliteClick, handleExit, pushLog, unlock]);
+  }, [L, handleLaunch, rocketActive, handleDock, applyLight, applyLab, handleWeather, ufoTrack, handleSatelliteClick, handleExit, handleBodyMode, pushLog, unlock]);
 
   /* ---------- keyboard ---------- */
 
@@ -656,6 +712,7 @@ export default function App() {
       else if (e.key === "2") handleBodyMode("moon");
       else if (e.key === "3") handleBodyMode("system");
       else if (e.key === "4") handleBodyMode("galaxy");
+      else if (e.key === "5") handleBodyMode("localGroup");
       else if (e.key === "+" || e.key === "=") engineRef.current?.zoomBy(1);
       else if (e.key === "-" || e.key === "_") engineRef.current?.zoomBy(-1);
       else if (e.key === "l" || e.key === "L") handleLaunch();
@@ -707,6 +764,7 @@ export default function App() {
           onStarClick={handleStarClick}
           onGalaxyClick={handleGalaxyClick}
           onExoPlanetClick={handleExoPlanetClick}
+          onLocalGalaxyClick={handleLocalGalaxyClick}
         />
       </div>
 
@@ -733,7 +791,7 @@ export default function App() {
       <IntelPanel
         lang={lang}
         star={star}
-        galaxy={galaxy}
+        galaxy={localGalaxy ?? galaxy}
         planet={exoPlanet ?? planet}
         onWide={handleWide}
       />

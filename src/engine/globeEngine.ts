@@ -2,14 +2,15 @@ import * as THREE from "three";
 import { gsap } from "gsap";
 import { audio } from "../audio/tacticalAudio";
 import { EXO_PLANETS, GALAXY_STARS, NEIGHBOR_GALAXIES, type ExoPlanetStyle } from "../data/planets";
+import { LOCAL_GROUP_GALAXIES, type LocalGroupGalaxy } from "../data/localGroup";
 
 /* =====================================================================
  *  GLOBE ENGINE — Tactical 3D sphere with GLSL atmosphere, particles,
  *  procedural grid textures, mission nodes and GSAP camera fly-to.
  * ===================================================================== */
 
-export type BodyMode = "earth" | "moon" | "sol" | "system" | "galaxy";
-type SingleBodyMode = Exclude<BodyMode, "system" | "galaxy">;
+export type BodyMode = "earth" | "moon" | "sol" | "system" | "galaxy" | "localGroup";
+type SingleBodyMode = Exclude<BodyMode, "system" | "galaxy" | "localGroup">;
 
 export type DoomMethod = "void" | "supernova" | "dissolve" | "meteor";
 
@@ -41,6 +42,7 @@ const BODY_CFG: Record<
   sol: { scale: 1.14, camDist: 8.7, atmo: 0xffb000, glow: 0xff7b00, spin: 0.009 },
   system: { scale: 1, camDist: 34, atmo: 0xffb000, glow: 0xff7b00, spin: 0.008 },
   galaxy: { scale: 1, camDist: 170, atmo: 0xffb000, glow: 0xff7b00, spin: 0.008 },
+  localGroup: { scale: 1, camDist: 420, atmo: 0xffb000, glow: 0xff7b00, spin: 0.008 },
 };
 
 /* ---------------- math helpers ---------------- */
@@ -990,6 +992,29 @@ export class GlobeEngine {
   private exoPlanets: { def: (typeof EXO_PLANETS)[number]; pivot: THREE.Group; mesh: THREE.Mesh; glow: THREE.Sprite; angle: number; world: THREE.Vector3; parentGalaxyId: string }[] = [];
   private hoverExo: string | null = null;
   private onExoPlanetClick?: (id: string) => void;
+
+  /* ---- LOCAL GROUP (本星系群) — one zoom level past the galaxy ----
+     real physics: satellite galaxies orbit their host, spirals self-rotate
+     (galactic rotation), Andromeda slowly closes in on the Milky Way ahead of
+     the coming ~4 Gyr merger. Real NASA imagery overlays major members. */
+  private localGroupGroup = new THREE.Group();
+  private localGroupGalaxies: {
+    def: LocalGroupGalaxy;
+    group: THREE.Group;
+    photo: THREE.Sprite | null;
+    glow: THREE.Sprite;
+    world: THREE.Vector3;
+    pos: THREE.Vector3;
+    selfSpin: number;
+    orbit?: { hostId: string; radius: number; angle: number; rate: number; wobble: number };
+    approach?: { rate: number };
+  }[] = [];
+  private localGroupFocusId: string | null = null;
+  private hoverLocalGalaxy: string | null = null;
+  private onLocalGalaxyClick?: (id: string) => void;
+  private localGroupLocal = { theta: 0.5, phi: 1.2, radius: 360 };
+  private localGroupBg: THREE.Points | null = null;
+  private localGroupGlobe: THREE.Sprite | null = null;
   /* moon as its own body — camera flies to the real orbiting moon */
   private moonFocus = false;
   private moonLocal = { theta: 0.4, phi: 1.35, radius: 1.7 };
@@ -1043,6 +1068,7 @@ export class GlobeEngine {
       onStarClick?: (id: string) => void;
       onGalaxyClick?: (id: string) => void;
       onExoPlanetClick?: (id: string) => void;
+      onLocalGalaxyClick?: (id: string) => void;
     } = {}
   ) {
     this.container = container;
@@ -1061,6 +1087,7 @@ export class GlobeEngine {
     this.onStarClick = opts.onStarClick;
     this.onGalaxyClick = opts.onGalaxyClick;
     this.onExoPlanetClick = opts.onExoPlanetClick;
+    this.onLocalGalaxyClick = opts.onLocalGalaxyClick;
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -1301,6 +1328,10 @@ export class GlobeEngine {
 
     /* milky way galaxy */
     this.buildGalaxy();
+
+    /* local group (本星系群) — the ~10 Mly galaxy cluster one level past the
+       milky way spiral, with real NASA imagery + orbital physics */
+    this.buildLocalGroup();
 
     /* real star surface texture (recoloured per spectral type) */
     this.loadTex(
@@ -1693,11 +1724,30 @@ export class GlobeEngine {
     if (this.switching) return;
     /* GALAXY — zoom out to the milky way / back in */
     if (mode === "galaxy") {
-      if (this.mode !== "galaxy") this.enterGalaxy();
+      if (this.mode === "localGroup") this.exitLocalGroup();
+      else if (this.mode !== "galaxy") this.enterGalaxy();
       return;
     }
-    if (this.mode === "galaxy") {
-      this.exitGalaxy(mode === "system" ? "system" : "earth");
+    /* LOCAL GROUP — one zoom level past the galaxy */
+    if (mode === "localGroup") {
+      if (this.mode !== "localGroup") {
+        if (this.mode !== "galaxy") this.enterGalaxy();
+        this.enterLocalGroup();
+      }
+      return;
+    }
+    if (this.mode === "localGroup") {
+      /* leaving the local group — step the camera back down through the galaxy */
+      this.exitLocalGroup();
+      if (mode === "system") {
+        this.exitGalaxyToSystem();
+      } else if (mode === "moon") {
+        this.exitGalaxy("earth");
+        setTimeout(() => this.focusMoon(), 1300);
+      } else if (mode === "earth" || mode === "sol") {
+        this.exitGalaxy("earth");
+        if (mode === "sol") this.swapSingleBody("sol");
+      }
       return;
     }
     /* LUNA is the real orbiting moon — fly to it instead of swapping textures */
@@ -4243,6 +4293,267 @@ export class GlobeEngine {
     return grp;
   }
 
+  /* ====================================================================
+   *  LOCAL GROUP (本星系群) — the ~10 Mly galaxy cluster we belong to.
+   *  One zoom level past the milky way spiral. Real NASA/Hubble imagery
+   *  is overlaid on the major members; the physics is real-feeling:
+   *  satellite galaxies orbit their host, spirals self-rotate, and
+   *  Andromeda slowly closes in on the Milky Way.
+   * ==================================================================== */
+
+  private buildLocalGroup() {
+    const g = this.localGroupGroup;
+    g.visible = true; /* visible off — see enterLocalGroup */
+
+    /* --- 17 member galaxies: procedural bodies + NASA photo + physics --- */
+    const hostBase: Record<string, [number, number, number]> = {
+      "milky-way": [0, 0, 0],
+      "andromeda": [330, 70, 150],
+      "triangulum": [262, -30, 62],
+    };
+
+    for (const def of LOCAL_GROUP_GALAXIES) {
+      const grp = this.buildNeighborGalaxy(def.type, def.color, def.scale);
+      grp.position.set(def.pos[0], def.pos[1], def.pos[2]);
+      g.add(grp);
+
+      /* clickable glow marker */
+      const glow = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: this.dotTex,
+          color: def.color,
+          blending: THREE.AdditiveBlending,
+          transparent: true,
+          opacity: 0.22,
+          depthWrite: false,
+        })
+      );
+      glow.scale.setScalar(def.scale * 0.9);
+      glow.position.copy(grp.position);
+      g.add(glow);
+
+      /* NASA / Hubble image billboard (additive → black sky stays transparent).
+         Invisible until a real photo finishes loading (procedural stays beneath). */
+      const photoMat = new THREE.SpriteMaterial({
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      });
+      const photo = new THREE.Sprite(photoMat);
+      photo.scale.setScalar(def.scale * 2.0);
+      photo.rotation.z = Math.random() * Math.PI;
+      grp.add(photo);
+
+      /* --- real-feeling orbital physics --- */
+      let orbit: { hostId: string; radius: number; angle: number; rate: number; wobble: number } | undefined;
+      let approach: { rate: number } | undefined;
+
+      if (def.id === "andromeda") {
+        /* closing in on the Milky Way — the coming ~4 Gyr merger */
+        approach = { rate: 0.035 };
+      } else if (def.role === "satellite") {
+        const hostId = this.nearestLocalHost(def.pos, hostBase);
+        const h = hostBase[hostId] ?? [0, 0, 0];
+        const dx = def.pos[0] - h[0];
+        const dz = def.pos[2] - h[2];
+        orbit = {
+          hostId,
+          radius: Math.hypot(dx, dz) || 10,
+          angle: Math.atan2(dz, dx),
+          rate: 0.006 + Math.random() * 0.012,
+          wobble: def.scale * 0.12 + 2,
+        };
+      }
+
+      const isSpiral = def.type === "spiral" || def.type === "lenticular";
+      this.localGroupGalaxies.push({
+        def,
+        group: grp,
+        photo,
+        glow,
+        world: new THREE.Vector3().copy(grp.position),
+        pos: new THREE.Vector3(def.pos[0], def.pos[1], def.pos[2]),
+        selfSpin: isSpiral ? 0.008 + Math.random() * 0.008 : 0.002 + Math.random() * 0.003,
+        orbit,
+        approach,
+      });
+    }
+
+    /* --- real NASA imagery for the major members --- */
+    this.loadLocalGroupPhotos();
+
+    /* --- distant field galaxies in the background --- */
+    const bgCount = 480;
+    const bgPos = new Float32Array(bgCount * 3);
+    const bgCol = new Float32Array(bgCount * 3);
+    const fieldCols = [0x9fc8ff, 0xfff4d0, 0xffd8a0, 0xe0c8ff, 0xffe2a8];
+    for (let i = 0; i < bgCount; i++) {
+      const rr = 620 + Math.random() * 360;
+      const th = Math.random() * Math.PI * 2;
+      const ph = Math.acos(Math.random() * 2 - 1);
+      /* keep them out of the near cluster yet inside the far plane */
+      bgPos[i * 3] = rr * Math.sin(ph) * Math.cos(th);
+      bgPos[i * 3 + 1] = rr * Math.cos(ph) * 0.5;
+      bgPos[i * 3 + 2] = rr * Math.sin(ph) * Math.sin(th);
+      const c = new THREE.Color(fieldCols[(Math.random() * fieldCols.length) | 0]);
+      bgCol[i * 3] = c.r;
+      bgCol[i * 3 + 1] = c.g;
+      bgCol[i * 3 + 2] = c.b;
+    }
+    const bgGeo = new THREE.BufferGeometry();
+    bgGeo.setAttribute("position", new THREE.BufferAttribute(bgPos, 3));
+    bgGeo.setAttribute("color", new THREE.BufferAttribute(bgCol, 3));
+    this.localGroupBg = new THREE.Points(
+      bgGeo,
+      new THREE.PointsMaterial({
+        size: 0.5,
+        map: this.dotTex,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.6,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    g.add(this.localGroupBg);
+
+    /* --- faint cluster halo at the barycentre --- */
+    this.localGroupGlobe = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: this.dotTex,
+        color: 0x224488,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0.08,
+        depthWrite: false,
+      })
+    );
+    this.localGroupGlobe.scale.setScalar(460);
+    g.add(this.localGroupGlobe);
+
+    g.visible = false;
+    this.scene.add(g);
+  }
+
+  private nearestLocalHost(pos: [number, number, number], hosts: Record<string, [number, number, number]>): string {
+    let best = "milky-way";
+    let bestD = Infinity;
+    for (const k of Object.keys(hosts)) {
+      const [x, y, z] = hosts[k];
+      const d = Math.hypot(pos[0] - x, pos[1] - y, pos[2] - z);
+      if (d < bestD) {
+        bestD = d;
+        best = k;
+      }
+    }
+    return best;
+  }
+
+  private loadLocalGroupPhotos() {
+    /* galaxy id → real NASA / Hubble observation (large + medium fallback) */
+    const map: Record<string, string> = {
+      "milky-way": "PIA18913",   // Planck full-sky portrait of the Milky Way
+      andromeda: "PIA04921",     // GALEX ultraviolet view of M31
+      triangulum: "PIA25165",    // Herschel/IRAS far-infrared M33
+      lmc: "PIA07137",           // Spitzer infrared mosaic of the whole LMC
+      smc: "PIA25164",           // Herschel/IRAS far-infrared SMC
+    };
+    for (const [id, nasaId] of Object.entries(map)) {
+      const lg = this.localGroupGalaxies.find((x) => x.def.id === id);
+      if (!lg || !lg.photo) continue;
+      const urls = [
+        `https://images-assets.nasa.gov/image/${nasaId}/${nasaId}~large.jpg`,
+        `https://images-assets.nasa.gov/image/${nasaId}/${nasaId}~medium.jpg`,
+      ];
+      this.loadTex(urls, (t) => {
+        if (!lg.photo) return;
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.anisotropy = 8;
+        const m = lg.photo.material as THREE.SpriteMaterial;
+        m.map = t;
+        m.color.set(0xffffff);
+        m.needsUpdate = true;
+      });
+    }
+  }
+
+  /** zoom the camera into a local-group galaxy and enter a free orbit */
+  focusLocalGalaxy(id: string) {
+    const lg = this.localGroupGalaxies.find((x) => x.def.id === id);
+    if (!lg || this.mode !== "localGroup") return;
+    this.localGroupFocusId = id;
+    this.flight = null;
+    const out = lg.world.clone().normalize();
+    if (out.lengthSq() < 1e-6) out.set(0, 0, 1);
+    const dist = Math.max(lg.def.scale * 1.1, 24);
+    const to = lg.world.clone().addScaledVector(out, dist);
+    this.startFlight(to, lg.world.clone(), 2.6, () => {
+      const rel = this.camera.position.clone().sub(lg.world);
+      const len = rel.length() || 1;
+      this.localGroupLocal = {
+        theta: Math.atan2(rel.x, rel.z),
+        phi: Math.acos(THREE.MathUtils.clamp(rel.y / len, -1, 1)),
+        radius: len,
+      };
+    });
+    this.idleUntil = this.time + 3;
+  }
+
+  clearLocalGalaxyFocus() {
+    this.localGroupFocusId = null;
+    this.homeSph = { theta: 0.5, phi: 1.1, radius: 430 };
+    this.startFlight(
+      this.sphToVec(this.homeSph),
+      new THREE.Vector3(0, 0, 0),
+      2.2,
+      () => {
+        const s = cartesianToSph(this.camera.position);
+        this.sph = { theta: s.theta, phi: s.phi, radius: s.radius };
+        this.lookAt.set(0, 0, 0);
+      }
+    );
+  }
+
+  /** step out of the solar-system/galaxy stack into the local group.
+      Camera radius stays CONTINUOUS (galaxy max ≈330 → local group range). */
+  private enterLocalGroup() {
+    this.satFocus = null;
+    this.moonFocus = false;
+    this.focusPlanetId = null;
+    this.galaxyFocusId = null;
+    this.exoFocusId = null;
+    this.starFocusId = null;
+    this.localGroupFocusId = null;
+    this.finishFlight();
+    this.mode = "localGroup";
+    this.galaxyGroup.visible = false;
+    this.stars.visible = false;
+    this.localGroupGroup.visible = true;
+    this.localGroupGroup.scale.setScalar(0.6);
+    gsap.to(this.localGroupGroup.scale, { x: 1, y: 1, z: 1, duration: 0.8, ease: "power1.out" });
+    /* radius continuity: galaxy far limit (≈330) flows into the local group */
+    this.sph.radius = Math.max(this.sph.radius, 360);
+    this.sph.phi = Math.max(this.sph.phi, 0.8);
+    this.homeSph = { theta: this.sph.theta, phi: 1.1, radius: 430 };
+    this.lookAt.set(0, 0, 0);
+    this.idleUntil = this.time + 3;
+  }
+
+  /** drop back into the milky way spiral — radius stays continuous */
+  private exitLocalGroup() {
+    this.localGroupFocusId = null;
+    this.localGroupGroup.visible = false;
+    this.galaxyGroup.visible = true;
+    this.galaxyGroup.scale.setScalar(0.55);
+    gsap.to(this.galaxyGroup.scale, { x: 1, y: 1, z: 1, duration: 0.6, ease: "power1.out" });
+    this.mode = "galaxy";
+    this.sph.radius = Math.min(this.sph.radius, 330);
+    this.homeSph = { theta: this.sph.theta, phi: 1.16, radius: 85 };
+    this.lookAt.set(0, 0, 0);
+    this.idleUntil = this.time + 3;
+  }
+
   /** fly the camera into a neighbour galaxy */
   focusGalaxy(id: string) {
     const g = this.neighborGalaxies.find((x) => x.id === id);
@@ -4437,7 +4748,9 @@ export class GlobeEngine {
 
   /** tap on empty space → release any camera follow and return to the free view */
   clearFocus() {
-    if (this.mode === "galaxy") {
+    if (this.mode === "localGroup") {
+      if (this.localGroupFocusId) this.clearLocalGalaxyFocus();
+    } else if (this.mode === "galaxy") {
       if (this.galaxyFocusId || this.exoFocusId || this.starFocusId) this.clearGalaxyFocus();
     } else if (this.mode === "system") {
       if (this.focusPlanetId) {
@@ -5169,6 +5482,9 @@ export class GlobeEngine {
       } else if ((this.galaxyFocusId || this.exoFocusId || this.starFocusId) && this.mode === "galaxy") {
         this.galaxyLocal.theta -= dx * 0.0042;
         this.galaxyLocal.phi = THREE.MathUtils.clamp(this.galaxyLocal.phi - dy * 0.0042, 0.2, Math.PI - 0.2);
+      } else if (this.localGroupFocusId && this.mode === "localGroup") {
+        this.localGroupLocal.theta -= dx * 0.0042;
+        this.localGroupLocal.phi = THREE.MathUtils.clamp(this.localGroupLocal.phi - dy * 0.0042, 0.2, Math.PI - 0.2);
       } else if (this.moonFocus && this.mode === "earth") {
         /* orbit the moon */
         this.moonLocal.theta -= dx * 0.0042;
@@ -5203,6 +5519,10 @@ export class GlobeEngine {
     if (wasClick) this.updateHover(e);
     if (this.annihilation) return;
     /* click (not drag) → galaxy stars · UFO easter egg · node · celestial body */
+    if (wasClick && this.mode === "localGroup" && this.hoverLocalGalaxy && this.onLocalGalaxyClick) {
+      this.onLocalGalaxyClick(this.hoverLocalGalaxy);
+      return;
+    }
     if (wasClick && this.mode === "galaxy" && this.hoverExo && this.onExoPlanetClick) {
       this.onExoPlanetClick(this.hoverExo);
       return;
@@ -5279,6 +5599,7 @@ export class GlobeEngine {
   }
 
   private getZoomRadius(): number {
+    if (this.localGroupFocusId && this.mode === "localGroup") return this.localGroupLocal.radius;
     if ((this.exoFocusId || this.galaxyFocusId || this.starFocusId) && this.mode === "galaxy") return this.galaxyLocal.radius;
     if (this.moonFocus && this.mode === "earth") return this.moonLocal.radius;
     if (this.mode === "system" && this.focusPlanetId) return this.local.radius;
@@ -5286,13 +5607,19 @@ export class GlobeEngine {
   }
 
   private setZoomRadius(r: number) {
-    if ((this.exoFocusId || this.galaxyFocusId || this.starFocusId) && this.mode === "galaxy") this.galaxyLocal.radius = r;
+    if (this.localGroupFocusId && this.mode === "localGroup") this.localGroupLocal.radius = r;
+    else if ((this.exoFocusId || this.galaxyFocusId || this.starFocusId) && this.mode === "galaxy") this.galaxyLocal.radius = r;
     else if (this.moonFocus && this.mode === "earth") this.moonLocal.radius = r;
     else if (this.mode === "system" && this.focusPlanetId) this.local.radius = r;
     else this.sph.radius = r;
   }
 
   private clampZoomRadius(r: number): number {
+    if (this.localGroupFocusId && this.mode === "localGroup") {
+      const lg = this.localGroupGalaxies.find((x) => x.def.id === this.localGroupFocusId);
+      const min = lg ? Math.max(lg.def.scale * 0.4, 6) : 8;
+      return THREE.MathUtils.clamp(r, min, 80);
+    }
     if (this.exoFocusId && this.mode === "galaxy") {
       const ex = this.exoPlanets.find((x) => x.def.id === this.exoFocusId);
       return THREE.MathUtils.clamp(r, ex ? ex.def.radius * 1.6 : 2, 40);
@@ -5304,6 +5631,7 @@ export class GlobeEngine {
     }
     if (this.galaxyFocusId && this.mode === "galaxy") return THREE.MathUtils.clamp(r, 6, 80);
     if (this.mode === "galaxy") return THREE.MathUtils.clamp(r, 16, 330);
+    if (this.mode === "localGroup") return THREE.MathUtils.clamp(r, 320, 560);
     if (this.moonFocus && this.mode === "earth") return THREE.MathUtils.clamp(r, 0.75, 7);
     if (this.mode === "system" && this.focusPlanetId) {
       const p = this.planets.find((x) => x.id === this.focusPlanetId);
@@ -5360,7 +5688,8 @@ export class GlobeEngine {
   }
 
   private onDblClick = () => {
-    if (this.starFocusId) this.clearStarFocus();
+    if (this.localGroupFocusId) this.clearLocalGalaxyFocus();
+    else if (this.starFocusId) this.clearStarFocus();
     else if (this.exoFocusId) this.clearExoFocus();
     else if (this.galaxyFocusId) this.clearGalaxyFocus();
     else if (this.moonFocus) this.clearMoonFocus();
@@ -5372,6 +5701,34 @@ export class GlobeEngine {
     if (!this.onHover) return;
     if (this.annihilation) {
       this.onHover(null);
+      return;
+    }
+
+    /* local group — hover the member galaxies */
+    if (this.mode === "localGroup") {
+      const rect = this.container.getBoundingClientRect();
+      const ndcX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      const ndcY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      let best: { id: string; name: string; color: string } | null = null;
+      let bestD = Infinity;
+      for (const lg of this.localGroupGalaxies) {
+        lg.group.getWorldPosition(this.tmpV);
+        this.tmpV.project(this.camera);
+        const d = Math.hypot(this.tmpV.x - ndcX, this.tmpV.y - ndcY);
+        const thresh = 0.05 + lg.def.scale * 0.004;
+        if (d < thresh && d < bestD) {
+          bestD = d;
+          best = { id: lg.def.id, name: lg.def.name, color: lg.def.color };
+        }
+      }
+      this.hoverLocalGalaxy = best ? best.id : null;
+      if (best) {
+        this.renderer.domElement.style.cursor = "pointer";
+        this.onHover({ id: best.id, name: best.name, color: best.color, x: e.clientX, y: e.clientY });
+      } else {
+        this.renderer.domElement.style.cursor = "crosshair";
+        this.onHover(null);
+      }
       return;
     }
 
@@ -5623,7 +5980,7 @@ export class GlobeEngine {
     }
 
     /* texture scroll */
-    if (this.mode !== "system" && this.mode !== "galaxy") {
+    if (this.mode !== "system" && this.mode !== "galaxy" && this.mode !== "localGroup") {
       const spinTarget = this.activeId ? 0.0009 : BODY_CFG[this.mode].spin;
       const tex = this.bodyTex[this.mode];
       tex.offset.x -= dt * spinTarget;
@@ -5908,7 +6265,53 @@ export class GlobeEngine {
       }
     }
 
-    /* camera — states: star focus · exoplanet focus · galaxy focus · flight · satellite · moon · planet · free */
+    /* local group — real orbital dynamics + galactic disc rotation + NASA fade */
+    if (this.mode === "localGroup" && this.localGroupGroup.visible) {
+      this.localGroupGroup.rotation.y += dt * 0.0012;
+      if (this.localGroupGlobe) {
+        (this.localGroupGlobe.material as THREE.SpriteMaterial).opacity =
+          0.05 + 0.03 * Math.sin(this.time * 0.4);
+      }
+      for (const lg of this.localGroupGalaxies) {
+        /* satellite galaxies orbit their host; Andromeda closes in on the
+           Milky Way ahead of the coming ~4 Gyr merger */
+        if (lg.orbit) {
+          const host = this.localGroupGalaxies.find((h) => h.def.id === lg.orbit!.hostId);
+          lg.orbit!.angle += lg.orbit!.rate * dt;
+          const hx = host ? host.pos.x : 0;
+          const hy = host ? host.pos.y : 0;
+          const hz = host ? host.pos.z : 0;
+          lg.pos.set(
+            hx + Math.cos(lg.orbit!.angle) * lg.orbit!.radius,
+            hy + Math.sin(lg.orbit!.angle * 0.7) * lg.orbit!.wobble,
+            hz + Math.sin(lg.orbit!.angle) * lg.orbit!.radius
+          );
+        } else if (lg.approach && lg.pos.length() > 60) {
+          lg.pos.sub(lg.pos.clone().normalize().multiplyScalar(lg.approach.rate * dt));
+        }
+        lg.group.position.copy(lg.pos);
+        /* real galactic self-rotation (spiral arms turn) */
+        lg.group.rotation.y += lg.selfSpin * dt;
+        lg.group.updateMatrixWorld(true);
+        lg.group.getWorldPosition(lg.world);
+        /* NASA photo billboard: full from afar, fades out as you fly inside it */
+        const photoMat = lg.photo?.material as THREE.SpriteMaterial | undefined;
+        if (photoMat && photoMat.map) {
+          const d = this.camera.position.distanceTo(lg.world);
+          const fade = THREE.MathUtils.smoothstep(d, lg.def.scale * 0.5, lg.def.scale * 2.2);
+          photoMat.opacity = THREE.MathUtils.clamp(0.95 * fade, 0, 0.95);
+        }
+        /* glow breathing + highlight the focused member */
+        const focused = this.localGroupFocusId === lg.def.id;
+        const gm = lg.glow.material as THREE.SpriteMaterial;
+        gm.opacity = 0.16 + (focused ? 0.5 : 0) + Math.sin(this.time * 1.6 + lg.def.pos[0]) * 0.08;
+        lg.glow.scale.setScalar(
+          lg.def.scale * 0.9 * (focused ? 1 + Math.sin(this.time * 3) * 0.12 : 1)
+        );
+      }
+    }
+
+    /* camera — states: star focus · exoplanet focus · galaxy focus · local group · flight · satellite · moon · planet · free */
     if (this.starFocusId && this.mode === "galaxy" && !this.flight) {
       const m = this.starMarkers.find((x) => x.id === this.starFocusId);
       if (m) {
@@ -5935,6 +6338,13 @@ export class GlobeEngine {
         this.followTarget(g.world, this.galaxyLocal, dt, 0.06);
       } else {
         this.galaxyFocusId = null;
+      }
+    } else if (this.localGroupFocusId && this.mode === "localGroup" && !this.flight) {
+      const lg = this.localGroupGalaxies.find((x) => x.def.id === this.localGroupFocusId);
+      if (lg) {
+        this.followTarget(lg.world, this.localGroupLocal, dt, 0.04);
+      } else {
+        this.localGroupFocusId = null;
       }
     } else if (this.satFocus && this.mode === "earth" && !this.flight) {
       /* first-person view riding the facility */

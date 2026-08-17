@@ -1,0 +1,473 @@
+/* ============================================================
+ *  LOCAL GROUP (本星系群) — the ~10 Mly galaxy cluster that
+ *  our Milky Way belongs to. Rendered as a fly-around scene
+ *  in the "localGroup" view level, one zoom-out past the
+ *  Milky Way spiral (galaxy view).
+ *
+ *  Positions are relative scene units. The Milky Way sits at
+ *  the origin; the scene itself is a flattened cluster (the
+ *  real Local Group is flattened into a disk ~10 Mly across).
+ *  Data is real observational info (distances, sizes, types).
+ * ============================================================ */
+
+import type { NeighborGalaxy } from "./planets";
+
+export type LocalGroupGalaxyType = NeighborGalaxy["type"];
+
+/**
+ * Core members of the Local Group. `role` marks the Milky Way so
+ * the engine can special-case clicking it (dive back into the
+ * galactic-spiral view). `scale` is the render size in scene units.
+ */
+export interface LocalGroupGalaxy extends NeighborGalaxy {
+  /** "home" = the Milky Way; "giant" = M31; otherwise a satellite/dwarf */
+  role: "home" | "giant" | "satellite";
+  /** approximate render diameter in scene units (drives particle count) */
+  scale: number;
+}
+
+export const LOCAL_GROUP_GALAXIES: LocalGroupGalaxy[] = [
+  {
+    id: "milky-way",
+    name: "MILKY WAY",
+    zh: "银河系",
+    role: "home",
+    type: "spiral",
+    typeLabel: ["棒旋星系 · SBbc", "BARRED SPIRAL · SBbc"],
+    distance: "0 — 本地星系",
+    size: "10 万光年",
+    color: "#d8e8ff",
+    scale: 34,
+    pos: [0, 0, 0],
+    briefing: [
+      "银河系——我们的家园星系，一个直径约 10 万光年的棒旋星系，拥有 1000 亿到 4000 亿颗恒星。太阳系位于猎户臂靠近盘面处，距银心约 2.6 万光年。银心处盘踞着一个约 430 万倍太阳质量的人马座 A* 超大质量黑洞。",
+      "The Milky Way — our home galaxy, a barred spiral ~100,000 ly across with 100–400 billion stars. The Solar System sits in the Orion Arm, ~26,000 ly from the centre, where the supermassive black hole Sagittarius A* (~4.3M M☉) lies.",
+    ],
+    data: [
+      ["恒星数量", "1000–4000 亿"],
+      ["类型", "SBbc 棒旋"],
+      ["银心", "人马座 A*"],
+    ],
+  },
+  {
+    id: "andromeda",
+    name: "ANDROMEDA · M31",
+    zh: "仙女座星系",
+    role: "giant",
+    type: "spiral",
+    typeLabel: ["螺旋星系 · Sb", "SPIRAL · Sb"],
+    distance: "254 万光年",
+    size: "22 万光年",
+    color: "#ffe9c0",
+    scale: 46,
+    pos: [330, 70, 150],
+    briefing: [
+      "仙女座星系——本星系群中最大、最亮的星系，直径达 22 万光年，比银河系更大。它正以约 110 公里/秒的相对速度靠近我们，约 40 亿年后将与银河系碰撞合并为'银河仙女座'（Milkomeda）。",
+      "Andromeda — the largest, brightest galaxy in the Local Group, 220,000 ly across and bigger than our Milky Way. It is approaching at ~110 km/s; in ~4 billion years it will merge with us into 'Milkomeda'.",
+    ],
+    data: [
+      ["恒星数量", "约 1 万亿"],
+      ["类型", "Sb 螺旋"],
+      ["接近速度", "110 KM/S"],
+    ],
+  },
+  {
+    id: "triangulum",
+    name: "TRIANGULUM · M33",
+    zh: "三角座星系",
+    role: "satellite",
+    type: "spiral",
+    typeLabel: ["螺旋星系 · Sc", "SPIRAL · Sc"],
+    distance: "273 万光年",
+    size: "6 万光年",
+    color: "#cfe8ff",
+    scale: 20,
+    pos: [262, -30, 62],
+    briefing: [
+      "三角座星系——本星系群第三大成员，一座松散明亮的旋涡星系。它可能是仙女座星系的一颗卫星，旋臂上孕育着巨大的恒星形成区。",
+      "Triangulum — the third-largest member of the Local Group, a loosely wound spiral and possibly a satellite of Andromeda, with giant star-forming regions along its arms.",
+    ],
+    data: [
+      ["恒星数量", "约 400 亿"],
+      ["类型", "Sc 螺旋"],
+      ["视角", "正面 54°"],
+    ],
+  },
+  {
+    id: "m32",
+    name: "M32 (NGC 221)",
+    zh: "M32 矮椭星系",
+    role: "satellite",
+    type: "lenticular",
+    typeLabel: ["矮椭星系", "DWARF ELLIPTICAL"],
+    distance: "254 万光年",
+    size: "6,500 光年",
+    color: "#f0e0c0",
+    scale: 9,
+    pos: [300, 66, 166],
+    briefing: [
+      "M32——仙女座星系的一颗致密矮椭星系伴星，在本星系群中拥有密度最高的恒星核之一。它正与 M31 交互，潮汐力把它的恒星扯向仙女座。",
+      "M32 — a compact dwarf elliptical satellite of Andromeda with one of the densest stellar nuclei in the Local Group. Interacting with M31, its stars are being drawn away by tides.",
+    ],
+    data: [
+      ["恒星数量", "约 1 亿"],
+      ["类型", "E2 矮椭"],
+      ["状态", "潮汐交互中"],
+    ],
+  },
+  {
+    id: "m110",
+    name: "M110 (NGC 205)",
+    zh: "M110 矮椭星系",
+    role: "satellite",
+    type: "lenticular",
+    typeLabel: ["矮椭星系", "DWARF ELLIPTICAL"],
+    distance: "254 万光年",
+    size: "1.7 万光年",
+    color: "#efe0c8",
+    scale: 11,
+    pos: [360, 80, 128],
+    briefing: [
+      "M110——仙女座星系另一颗著名的矮椭星系伴星，含少量尘埃与年轻恒星，是矮椭星系中异常活跃的成员。",
+      "M110 — another famous dwarf elliptical satellite of Andromeda, unusually young and dust-bearing for a dwarf elliptical.",
+    ],
+    data: [
+      ["恒星数量", "约 2 亿"],
+      ["类型", "E5 矮椭"],
+      ["年轻恒星", "存在"],
+    ],
+  },
+  {
+    id: "lmc",
+    name: "LARGE MAGELLANIC CLOUD",
+    zh: "大麦哲伦云",
+    role: "satellite",
+    type: "irregular",
+    typeLabel: ["不规则矮星系", "IRREGULAR DWARF"],
+    distance: "16.3 万光年",
+    size: "1.4 万光年",
+    color: "#9fe8ff",
+    scale: 14,
+    pos: [-70, -95, -45],
+    briefing: [
+      "大麦哲伦云——银河系最亮的伴星系，南天肉眼可见的云雾。著名的蜘蛛星云就藏在其中，是本地宇宙最剧烈的恒星育婴室。",
+      "The Large Magellanic Cloud — the Milky Way's brightest satellite, a naked-eye smudge from the south, hiding the violent Tarantula Nebula, the most active stellar nursery in the local universe.",
+    ],
+    data: [
+      ["恒星数量", "约 300 亿"],
+      ["地位", "银河伴星系"],
+      ["著名区域", "蜘蛛星云"],
+    ],
+  },
+  {
+    id: "smc",
+    name: "SMALL MAGELLANIC CLOUD",
+    zh: "小麦哲伦云",
+    role: "satellite",
+    type: "irregular",
+    typeLabel: ["不规则矮星系", "IRREGULAR DWARF"],
+    distance: "20 万光年",
+    size: "7000 光年",
+    color: "#d8e8ff",
+    scale: 9,
+    pos: [-90, -76, -35],
+    briefing: [
+      "小麦哲伦云——大麦哲伦云的小妹妹，同样绕银河系公转。两者之间拖着横跨天空的'麦哲伦流'——被潮汐力撕扯出的氢气尾迹。",
+      "The Small Magellanic Cloud — the LMC's little sister, also orbiting the Milky Way, linked by the vast tidal 'Magellanic Stream' of hydrogen.",
+    ],
+    data: [
+      ["恒星数量", "约 10 亿"],
+      ["地位", "银河伴星系"],
+      ["潮汐结构", "麦哲伦流"],
+    ],
+  },
+  {
+    id: "sagittarius-dwarf",
+    name: "SAGITTARIUS DSPH",
+    zh: "人马座矮椭球星系",
+    role: "satellite",
+    type: "irregular",
+    typeLabel: ["矮椭球星系 · 星流", "DWARF SPHEROIDAL · STREAM"],
+    distance: "6 万光年",
+    size: "1 万光年",
+    color: "#ffd8a0",
+    scale: 9,
+    pos: [-40, 45, 25],
+    briefing: [
+      "人马座矮椭球星系——银河系的卫星，已被银河引力拉扯成绕银河的星流，正把恒星一条条送进银河。",
+      "The Sagittarius Dwarf — a Milky Way satellite stretched into a stellar stream, feeding stars into our galaxy in ribbons.",
+    ],
+    data: [
+      ["距离", "6 万光年"],
+      ["结构", "环绕星流"],
+      ["核心", "人马座方向"],
+    ],
+  },
+  {
+    id: "sculptor-dwarf",
+    name: "SCULPTOR DWARF",
+    zh: "玉夫座矮星系",
+    role: "satellite",
+    type: "irregular",
+    typeLabel: ["矮椭球星系", "DWARF SPHEROIDAL"],
+    distance: "29 万光年",
+    size: "8,000 光年",
+    color: "#cfe4ff",
+    scale: 8,
+    pos: [-120, -80, -60],
+    briefing: [
+      "玉夫座矮星系——银河系最古老的伴星系之一，几乎全是百亿岁以上的高龄恒星，金属丰度极低。",
+      "The Sculptor Dwarf — one of the Milky Way's oldest satellites, made almost entirely of stars over ten billion years old, with extremely low metallicity.",
+    ],
+    data: [
+      ["恒星", "极古老"],
+      ["金属丰度", "-1.8 dex"],
+      ["亮度", "暗"],
+    ],
+  },
+  {
+    id: "fornax-dwarf",
+    name: "FORNAX DWARF",
+    zh: "天炉座矮星系",
+    role: "satellite",
+    type: "irregular",
+    typeLabel: ["矮椭球星系", "DWARF SPHEROIDAL"],
+    distance: "46 万光年",
+    size: "1.4 万光年",
+    color: "#d8d0ff",
+    scale: 10,
+    pos: [-140, -58, -90],
+    briefing: [
+      "天炉座矮星系——银河系中较活跃的伴星系，拥有六个球状星团，是研究恒星演化的珍贵样本。",
+      "The Fornax Dwarf — a relatively active Milky Way satellite hosting six globular clusters, a precious sample for stellar-evolution studies.",
+    ],
+    data: [
+      ["球状星团", "6 个"],
+      ["距离", "46 万光年"],
+      ["类型", "矮椭球"],
+    ],
+  },
+  {
+    id: "ngc6822",
+    name: "NGC 6822 · BARNARD'S",
+    zh: "巴纳德星系",
+    role: "satellite",
+    type: "irregular",
+    typeLabel: ["不规则矮星系", "IRREGULAR DWARF"],
+    distance: "163 万光年",
+    size: "7,000 光年",
+    color: "#bfe8ff",
+    scale: 9,
+    pos: [120, -60, -90],
+    briefing: [
+      "NGC 6822（巴纳德星系）——第一个被确认与银河系同属本星系群的不规则矮星系，藏着大量 HII 区与恒星形成区。",
+      "NGC 6822 (Barnard's Galaxy) — the first irregular confirmed as a Local Group member, rich in HII regions and star-forming sites.",
+    ],
+    data: [
+      ["距离", "163 万光年"],
+      ["HII 区", "大量"],
+      ["类型", "不规则"],
+    ],
+  },
+  {
+    id: "ic10",
+    name: "IC 10",
+    zh: "IC 10",
+    role: "satellite",
+    type: "irregular",
+    typeLabel: ["不规则矮星系 · 星暴", "IRREGULAR · STARBURST"],
+    distance: "220 万光年",
+    size: "5,000 光年",
+    color: "#9fd8ff",
+    scale: 8,
+    pos: [170, 40, -120],
+    briefing: [
+      "IC 10——本星系群中唯一已知的星暴星系，恒星形成率远高于其他成员，是研究早期宇宙的天然实验室。",
+      "IC 10 — the only known starburst galaxy in the Local Group, forming stars at a rate unmatched by its neighbours, a natural laboratory for the early universe.",
+    ],
+    data: [
+      ["特征", "星暴活动"],
+      ["恒星形成率", "极高"],
+      ["位置", "仙后座方向"],
+    ],
+  },
+  {
+    id: "ngc185",
+    name: "NGC 185",
+    zh: "NGC 185",
+    role: "satellite",
+    type: "lenticular",
+    typeLabel: ["矮椭星系", "DWARF ELLIPTICAL"],
+    distance: "205 万光年",
+    size: "8,000 光年",
+    color: "#efe0c8",
+    scale: 8,
+    pos: [200, 60, 70],
+    briefing: [
+      "NGC 185——仙女座星系的伴星系，与 NGC 147 组成一对，是少数含年轻恒星与致密尘埃的矮椭星系。",
+      "NGC 185 — a companion of Andromeda, paired with NGC 147, one of the few dwarf ellipticals containing young stars and dense dust.",
+    ],
+    data: [
+      ["伴星系", "NGC 147"],
+      ["年轻恒星", "存在"],
+      ["类型", "矮椭"],
+    ],
+  },
+  {
+    id: "ngc147",
+    name: "NGC 147",
+    zh: "NGC 147",
+    role: "satellite",
+    type: "lenticular",
+    typeLabel: ["矮椭星系", "DWARF ELLIPTICAL"],
+    distance: "253 万光年",
+    size: "1.3 万光年",
+    color: "#f0e8d8",
+    scale: 9,
+    pos: [180, 90, 60],
+    briefing: [
+      "NGC 147——与 NGC 185 组成仙女座星系的卫星对，一座平淡却古老的低活动矮椭星系。",
+      "NGC 147 — paired with NGC 185 as a satellite of Andromeda, a quiet, ancient, low-activity dwarf elliptical.",
+    ],
+    data: [
+      ["伴星系", "NGC 185"],
+      ["恒星", "古老"],
+      ["类型", "矮椭"],
+    ],
+  },
+  {
+    id: "ic1613",
+    name: "IC 1613",
+    zh: "IC 1613",
+    role: "satellite",
+    type: "irregular",
+    typeLabel: ["不规则矮星系", "IRREGULAR DWARF"],
+    distance: "238 万光年",
+    size: "6,000 光年",
+    color: "#cfe8ff",
+    scale: 8,
+    pos: [150, -40, -50],
+    briefing: [
+      "IC 1613——本星系群中尘埃最少的星系之一，几乎透明，是研究恒星与星系结构的最佳实验室。",
+      "IC 1613 — among the least dusty galaxies in the Local Group, nearly transparent, a superb laboratory for stellar and galactic structure.",
+    ],
+    data: [
+      ["尘埃", "极少"],
+      ["透明度", "高"],
+      ["类型", "不规则"],
+    ],
+  },
+  {
+    id: "sextans-a",
+    name: "SEXTANS A",
+    zh: "六分仪座 A",
+    role: "satellite",
+    type: "irregular",
+    typeLabel: ["不规则矮星系", "IRREGULAR DWARF"],
+    distance: "430 万光年",
+    size: "5,000 光年",
+    color: "#bfe8ff",
+    scale: 8,
+    pos: [230, 40, -70],
+    briefing: [
+      "六分仪座 A——本星系群边缘的小型不规则星系，方方正正的年轻星团散布其间，像夜空中的萤火。",
+      "Sextans A — a small irregular at the Local Group's edge, studded with boxy young star clusters like fireflies.",
+    ],
+    data: [
+      ["特征", "年轻星团"],
+      ["形态", "方形结构"],
+      ["位置", "边缘"],
+    ],
+  },
+  {
+    id: "maffei1",
+    name: "MAFFEI 1",
+    zh: "马费 1 星系",
+    role: "satellite",
+    type: "lenticular",
+    typeLabel: ["巨型透镜星系", "GIANT LENTICULAR"],
+    distance: "1100 万光年",
+    size: "5.5 万光年",
+    color: "#ffd8a0",
+    scale: 14,
+    pos: [300, 60, -100],
+    briefing: [
+      "马费 1 星系——被银河系盘面尘埃遮蔽的巨型透镜星系，直到 1968 年才在红外波段被发现，位于本星系群的外部边缘。",
+      "Maffei 1 — a giant lenticular hidden behind the Milky Way's dust, only discovered in the infrared in 1968, at the Local Group's outer edge.",
+    ],
+    data: [
+      ["发现", "1968 红外"],
+      ["类型", "巨型透镜"],
+      ["位置", "外缘"],
+    ],
+  },
+  {
+    id: "maffei2",
+    name: "MAFFEI 2",
+    zh: "马费 2 星系",
+    role: "satellite",
+    type: "spiral",
+    typeLabel: ["中间螺旋星系", "INTERMEDIATE SPIRAL"],
+    distance: "950 万光年",
+    size: "2.5 万光年",
+    color: "#ffe0b0",
+    scale: 11,
+    pos: [290, 50, -112],
+    briefing: [
+      "马费 2 星系——与马费 1 同处被遮蔽的'隐带'，一座富含尘埃与恒星形成的中间螺旋星系。",
+      "Maffei 2 — another dust-hidden member of the obscured 'zone of avoidance', an intermediate spiral rich in dust and star formation.",
+    ],
+    data: [
+      ["位置", "隐带"],
+      ["类型", "中间螺旋"],
+      ["恒星形成", "活跃"],
+    ],
+  },
+  {
+    id: "leo-i",
+    name: "LEO I",
+    zh: "狮子座 I 矮星系",
+    role: "satellite",
+    type: "irregular",
+    typeLabel: ["矮椭球星系", "DWARF SPHEROIDAL"],
+    distance: "82 万光年",
+    size: "2,300 光年",
+    color: "#e8d8ff",
+    scale: 6,
+    pos: [50, 120, 40],
+    briefing: [
+      "狮子座 I——银河系最遥远的经典伴星系之一，几乎全部由金属丰度极低的古老恒星构成。",
+      "Leo I — one of the Milky Way's most distant classical satellites, made almost entirely of ancient, metal-poor stars.",
+    ],
+    data: [
+      ["距离", "82 万光年"],
+      ["恒星", "古老贫金属"],
+      ["光度", "极低"],
+    ],
+  },
+  {
+    id: "draco-dwarf",
+    name: "DRACO DWARF",
+    zh: "天龙座矮星系",
+    role: "satellite",
+    type: "irregular",
+    typeLabel: ["矮椭球星系", "DWARF SPHEROIDAL"],
+    distance: "26 万光年",
+    size: "3,500 光年",
+    color: "#d8d0ff",
+    scale: 7,
+    pos: [-60, 70, -20],
+    briefing: [
+      "天龙座矮星系——银河系最暗的伴星系之一，古老恒星的墓场，几乎所有恒星都诞生于百亿年前。",
+      "The Draco Dwarf — one of the Milky Way's faintest satellites, a graveyard of ancient stars born ten billion years ago.",
+    ],
+    data: [
+      ["恒星", "极古老"],
+      ["金属丰度", "极低"],
+      ["亮度", "极暗"],
+    ],
+  },
+];
+
+export const localGroupGalaxyById = (id: string) =>
+  LOCAL_GROUP_GALAXIES.find((g) => g.id === id);

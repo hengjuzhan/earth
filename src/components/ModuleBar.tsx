@@ -3,8 +3,8 @@ import type { Lang } from "../data/i18n";
 import { cn } from "../utils/cn";
 
 /* ============================================================
- *  VIEW MODULE BAR — only three scale-level buttons remain:
- *  EARTH → SOLAR SYSTEM → GALAXY
+ *  VIEW MODULE BAR — a four-level zoom path:
+ *  EARTH → SOLAR SYSTEM → GALAXY → LOCAL GROUP
  * ============================================================ */
 
 interface Props {
@@ -17,6 +17,7 @@ const MODULES: { id: string; icon: string; color: string; label: (l: Lang) => st
   { id: "earth", icon: "🌍", color: "#00F0FF", label: (l) => (l === "zh" ? "地球" : "EARTH") },
   { id: "system", icon: "☉", color: "#FFB000", label: (l) => (l === "zh" ? "太阳系" : "SYSTEM") },
   { id: "galaxy", icon: "🌌", color: "#B44CFF", label: (l) => (l === "zh" ? "银河系" : "GALAXY") },
+  { id: "localGroup", icon: "✧", color: "#7DE0FF", label: (l) => (l === "zh" ? "本星系群" : "LOCAL GROUP") },
 ];
 
 export default function ModuleBar({ lang, bodyMode, onModule }: Props) {

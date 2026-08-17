@@ -4358,123 +4358,7 @@ export class GlobeEngine {
       })
     );
     grp.add(sStars);
-
-    /* HII regions / luminous star-forming nebulae sprinkled through the disc —
-       real galaxies (e.g. the Tarantula in the LMC) sparkle with these */
-    const hiiCols = [0xff9ad5, 0x9ad0ff, 0xc28aff, 0xff8a5c];
-    for (let i = 0; i < 4; i++) {
-      const h = new THREE.Sprite(
-        new THREE.SpriteMaterial({
-          map: this.dotTex,
-          color: hiiCols[(Math.random() * hiiCols.length) | 0],
-          blending: THREE.AdditiveBlending,
-          transparent: true,
-          opacity: 0.5 + Math.random() * 0.3,
-          depthWrite: false,
-        })
-      );
-      const hth = Math.random() * Math.PI * 2;
-      const hr = baseScale * (0.25 + Math.random() * 0.55);
-      h.position.set(Math.cos(hth) * hr, (Math.random() - 0.5) * 0.8, Math.sin(hth) * hr);
-      h.scale.setScalar(baseScale * (0.16 + Math.random() * 0.1));
-      grp.add(h);
-    }
-
-    /* globular clusters — a sparse shell of compact clusters rings the halo,
-       exactly as real galaxies are orbited by hundreds of them */
-    const gcCount = 60;
-    const gcPos = new Float32Array(gcCount * 3);
-    const gcCol = new Float32Array(gcCount * 3);
-    for (let i = 0; i < gcCount; i++) {
-      const gt = Math.random() * Math.PI * 2;
-      const gp = Math.acos(Math.random() * 2 - 1);
-      const gr = baseScale * (0.85 + Math.random() * 0.45);
-      gcPos[i * 3] = gr * Math.sin(gp) * Math.cos(gt);
-      gcPos[i * 3 + 1] = gr * Math.cos(gp) * 0.55;
-      gcPos[i * 3 + 2] = gr * Math.sin(gp) * Math.sin(gt);
-      gcCol[i * 3] = 0.75; gcCol[i * 3 + 1] = 0.78; gcCol[i * 3 + 2] = 0.9;
-    }
-    const gcGeo = new THREE.BufferGeometry();
-    gcGeo.setAttribute("position", new THREE.BufferAttribute(gcPos, 3));
-    gcGeo.setAttribute("color", new THREE.BufferAttribute(gcCol, 3));
-    grp.add(
-      new THREE.Points(
-        gcGeo,
-        new THREE.PointsMaterial({
-          size: Math.max(0.22, baseScale * 0.014),
-          map: this.dotTex,
-          vertexColors: true,
-          transparent: true,
-          opacity: 0.7,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        })
-      )
-    );
-    /* real 3D objects, not just light-haze: solid stellar cores + a sample
-       planetary system, so galaxies read as STAR SYSTEMS you can visit */
-    this.addSolidStars(grp, baseScale);
-    this.addPlanetSystem(grp, baseScale);
     return grp;
-  }
-
-  /** solid stellar cores — actual little star BALLS scattered in the disc,
-      so a galaxy resolves into individual stars when you dive in */
-  private addSolidStars(grp: THREE.Group, baseScale: number) {
-    const count = 48;
-    const inst = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 8), new THREE.MeshBasicMaterial(), count);
-    const M = new THREE.Matrix4();
-    const q = new THREE.Quaternion();
-    const sc = new THREE.Vector3();
-    const p = new THREE.Vector3();
-    const cols = [0xfff6df, 0xffe3b8, 0xf3f6ff, 0xffcf9a, 0xcfddff, 0xfff1c4, 0xffffff];
-    for (let i = 0; i < count; i++) {
-      const th = Math.random() * Math.PI * 2;
-      const r = 0.45 + Math.random() * baseScale * 0.72;
-      const sz = Math.max(baseScale * 0.035, 0.05) * (0.7 + Math.random() * 0.8);
-      p.set(Math.cos(th) * r, (Math.random() - 0.5) * 0.6, Math.sin(th) * r);
-      sc.set(sz, sz, sz);
-      M.compose(p, q, sc);
-      inst.setMatrixAt(i, M);
-      inst.setColorAt(i, new THREE.Color(cols[(Math.random() * cols.length) | 0]));
-    }
-    inst.instanceMatrix.needsUpdate = true;
-    if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
-    grp.add(inst);
-  }
-
-  /** a representative planetary system — one warm host star circled by real
-      rocky worlds with faint rings, embedded in the disc */
-  private addPlanetSystem(grp: THREE.Group, baseScale: number) {
-    const hostR = Math.max(baseScale * 0.13, 0.6);
-    const host = new THREE.Mesh(new THREE.SphereGeometry(hostR, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffd9a8 }));
-    const th0 = Math.random() * Math.PI * 2;
-    host.position.set(Math.cos(th0) * baseScale * 0.55, 0, Math.sin(th0) * baseScale * 0.55);
-    grp.add(host);
-    const starGlow = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        map: this.dotTex, color: 0xffd9a8,
-        blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.7,
-      })
-    );
-    starGlow.scale.setScalar(hostR * 4.2);
-    host.add(starGlow);
-    const pcols = [0x9fb7d0, 0xc9a06a, 0x7a8aa0, 0xb86a4a];
-    [2.6, 3.9, 5.5].forEach((orb, idx) => {
-      const ring = new THREE.Mesh(
-        new THREE.RingGeometry(orb * hostR * 0.86, orb * hostR * 0.98, 48),
-        new THREE.MeshBasicMaterial({ color: 0x2a3550, transparent: true, opacity: 0.35, side: THREE.DoubleSide })
-      );
-      ring.rotation.x = Math.PI / 2;
-      host.add(ring);
-      const pr = orb * hostR;
-      const pl = new THREE.Mesh(
-        new THREE.SphereGeometry(pr * (idx === 0 ? 0.15 : idx === 2 ? 0.2 : 0.12), 12, 10),
-        new THREE.MeshBasicMaterial({ color: pcols[idx] })
-      );
-      pl.position.set(Math.cos(idx * 2.1) * pr, 0, Math.sin(idx * 2.1) * pr);
-      host.add(pl);
-    });
   }
 
   /* ====================================================================
@@ -4713,36 +4597,6 @@ export class GlobeEngine {
       this.localGroupNebula.push({ sprite: s, drift: 0.4 + Math.random() * 0.8 });
       g.add(s);
     }
-
-    /* a loose field of drifting debris — meteoroids & rocky fragments
-       scattered through the cluster so it never feels empty */
-    const rockCols = [0x8a7f74, 0x5f6b72, 0x9a8d7e, 0x6f6256, 0x7b6f66];
-    const dCount = 380;
-    const dPos = new Float32Array(dCount * 3);
-    const dCol = new Float32Array(dCount * 3);
-    for (let i = 0; i < dCount; i++) {
-      const ath = Math.random() * Math.PI * 2;
-      const aph = Math.acos(Math.random() * 2 - 1);
-      const ar = 60 + Math.pow(Math.random(), 0.6) * 260;
-      dPos[i * 3] = ar * Math.sin(aph) * Math.cos(ath);
-      dPos[i * 3 + 1] = (Math.random() - 0.5) * 120;
-      dPos[i * 3 + 2] = ar * Math.sin(aph) * Math.sin(ath);
-      const rc = new THREE.Color(rockCols[(Math.random() * rockCols.length) | 0]);
-      const rb = 0.4 + Math.random() * 0.4;
-      dCol[i * 3] = rc.r * rb; dCol[i * 3 + 1] = rc.g * rb; dCol[i * 3 + 2] = rc.b * rb;
-    }
-    const dGeo = new THREE.BufferGeometry();
-    dGeo.setAttribute("position", new THREE.BufferAttribute(dPos, 3));
-    dGeo.setAttribute("color", new THREE.BufferAttribute(dCol, 3));
-    const debris = new THREE.Points(
-      dGeo,
-      new THREE.PointsMaterial({
-        size: 0.28, map: this.dotTex, vertexColors: true,
-        transparent: true, opacity: 0.85,
-        blending: THREE.AdditiveBlending, depthWrite: false,
-      })
-    );
-    g.add(debris);
 
     /* faint ultra-deep background — distant cluster haze that sells the
        sheer scale of the cosmos */
@@ -6077,7 +5931,9 @@ export class GlobeEngine {
   private clampZoomRadius(r: number): number {
     if (this.localGroupFocusId && this.mode === "localGroup") {
       const lg = this.localGroupGalaxies.find((x) => x.def.id === this.localGroupFocusId);
-      const min = lg ? Math.max(lg.def.scale * 0.4, 6) : 8;
+      /* camera stays OUTSIDE the disc — zooming inside a thin particle plane
+         renders as nothing (black screen) */
+      const min = lg ? Math.max(lg.def.scale * 1.4, 10) : 14;
       return THREE.MathUtils.clamp(r, min, 80);
     }
     if (this.exoFocusId && this.mode === "galaxy") {
@@ -6089,7 +5945,13 @@ export class GlobeEngine {
       const starR = sm ? (sm.mesh.geometry as THREE.SphereGeometry).parameters.radius : 0.7;
       return THREE.MathUtils.clamp(r, Math.max(starR * 3.4, 2.2), 30);
     }
-    if (this.galaxyFocusId && this.mode === "galaxy") return THREE.MathUtils.clamp(r, 6, 80);
+    if (this.galaxyFocusId && this.mode === "galaxy") {
+      const g = this.neighborGalaxies.find((x) => x.id === this.galaxyFocusId);
+      /* keep the camera outside the disc — scaling inside the thin particle
+         plane looks like nothing (black screen) */
+      const min = Math.max(g ? g.scale * 1.4 : 14, 14);
+      return THREE.MathUtils.clamp(r, min, 80);
+    }
     if (this.mode === "galaxy") return THREE.MathUtils.clamp(r, 16, 330);
     if (this.mode === "localGroup") return THREE.MathUtils.clamp(r, 320, 560);
     if (this.moonFocus && this.mode === "earth") return THREE.MathUtils.clamp(r, 0.75, 7);

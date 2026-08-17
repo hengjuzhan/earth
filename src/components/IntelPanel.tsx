@@ -379,6 +379,9 @@ export default function IntelPanel({ lang, star, galaxy, planet, interiorStar, i
               <div className="flex items-center justify-between border-b border-cyan-400/20 px-3 py-1.5">
                 <span className="text-[11px] tracking-[0.2em]" style={{ color: interiorPlanet.color, textShadow: `0 0 8px ${interiorPlanet.color}66` }}>
                   ◈ {lang === "zh" ? interiorPlanet.zh : interiorPlanet.name}
+                  <span className="ml-1.5 text-[9px] tracking-[0.1em] text-cyan-200/60">
+                    · {interiorPlanet.type[lang === "zh" ? 0 : 1]}
+                  </span>
                 </span>
                 <span className="text-[8px] text-pink-300/80 blink">● {t(lang, "celestialBody")}</span>
               </div>

@@ -75,7 +75,7 @@ export default function InteriorObjectList({
         {sysPlanets.length > 0 ? (
           <>
             <div className="mt-1 text-[8px] tracking-[0.25em] text-cyan-200/40">
-              {lang === "zh" ? "行星" : "PLANETS"}
+              {lang === "zh" ? "行星 / 伴星" : "PLANETS / COMPANIONS"}
             </div>
             {sysPlanets.map((p) => {
               const active = activePlanetId === p.id;
@@ -179,7 +179,7 @@ export default function InteriorObjectList({
 
       {planets.length > 0 && (
         <div className="mt-1 text-[8px] tracking-[0.25em] text-cyan-200/40">
-          {lang === "zh" ? "河外行星（全景标记）" : "EXOPLANETS (PANORAMA)"}
+          {lang === "zh" ? "行星 / 伴星（全景标记）" : "PLANETS / COMPANIONS (PANORAMA)"}
         </div>
       )}
       {planets.map((p) => {

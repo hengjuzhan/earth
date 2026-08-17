@@ -1113,9 +1113,10 @@ export class GlobeEngine {
       45,
       container.clientWidth / Math.max(container.clientHeight, 1),
       0.1,
-      /* galaxy mode lets you zoom out to radius 330 — the far plane must
-         stay well beyond that or the whole galaxy gets clipped away */
-      1000
+      /* the Local Group's deepest background sits at radius ~1300. If the
+         far plane sits at 1000 (was Milky Way only), diving into a galaxy
+         clips the whole backdrop away → black screen */
+      4000
     );
 
     this.dotTex = makeGlowDotTexture();
@@ -4357,6 +4358,59 @@ export class GlobeEngine {
       })
     );
     grp.add(sStars);
+
+    /* HII regions / luminous star-forming nebulae sprinkled through the disc —
+       real galaxies (e.g. the Tarantula in the LMC) sparkle with these */
+    const hiiCols = [0xff9ad5, 0x9ad0ff, 0xc28aff, 0xff8a5c];
+    for (let i = 0; i < 4; i++) {
+      const h = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: this.dotTex,
+          color: hiiCols[(Math.random() * hiiCols.length) | 0],
+          blending: THREE.AdditiveBlending,
+          transparent: true,
+          opacity: 0.5 + Math.random() * 0.3,
+          depthWrite: false,
+        })
+      );
+      const hth = Math.random() * Math.PI * 2;
+      const hr = baseScale * (0.25 + Math.random() * 0.55);
+      h.position.set(Math.cos(hth) * hr, (Math.random() - 0.5) * 0.8, Math.sin(hth) * hr);
+      h.scale.setScalar(baseScale * (0.16 + Math.random() * 0.1));
+      grp.add(h);
+    }
+
+    /* globular clusters — a sparse shell of compact clusters rings the halo,
+       exactly as real galaxies are orbited by hundreds of them */
+    const gcCount = 60;
+    const gcPos = new Float32Array(gcCount * 3);
+    const gcCol = new Float32Array(gcCount * 3);
+    for (let i = 0; i < gcCount; i++) {
+      const gt = Math.random() * Math.PI * 2;
+      const gp = Math.acos(Math.random() * 2 - 1);
+      const gr = baseScale * (0.85 + Math.random() * 0.45);
+      gcPos[i * 3] = gr * Math.sin(gp) * Math.cos(gt);
+      gcPos[i * 3 + 1] = gr * Math.cos(gp) * 0.55;
+      gcPos[i * 3 + 2] = gr * Math.sin(gp) * Math.sin(gt);
+      gcCol[i * 3] = 0.75; gcCol[i * 3 + 1] = 0.78; gcCol[i * 3 + 2] = 0.9;
+    }
+    const gcGeo = new THREE.BufferGeometry();
+    gcGeo.setAttribute("position", new THREE.BufferAttribute(gcPos, 3));
+    gcGeo.setAttribute("color", new THREE.BufferAttribute(gcCol, 3));
+    grp.add(
+      new THREE.Points(
+        gcGeo,
+        new THREE.PointsMaterial({
+          size: Math.max(0.22, baseScale * 0.014),
+          map: this.dotTex,
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.7,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        })
+      )
+    );
     return grp;
   }
 
@@ -4654,6 +4708,42 @@ export class GlobeEngine {
       })
     );
     g.add(deepPts);
+
+    /* Magellanic Stream — the REAL tidal hydrogen bridge torn from the
+       Magellanic Clouds toward the Milky Way (a famous Local Group feature) */
+    const lmcDef = this.localGroupGalaxies.find((x) => x.def.id === "lmc");
+    if (lmcDef && this.localGroupGalaxies.length) {
+      const a0 = new THREE.Vector3(lmcDef.def.pos[0], lmcDef.def.pos[1], lmcDef.def.pos[2]);
+      const msCount = 240;
+      const msPos = new Float32Array(msCount * 3);
+      const msCol = new Float32Array(msCount * 3);
+      for (let i = 0; i < msCount; i++) {
+        const t = i / msCount;
+        const e = Math.pow(t, 0.9);
+        const bx = a0.x * (1 - e);
+        const by = a0.y * (1 - e);
+        const bz = a0.z * (1 - e);
+        const sway = Math.sin(t * 9 + 0.7) * 6 + Math.sin(t * 23) * 2.4;
+        msPos[i * 3] = bx + Math.cos(t * 5) * sway * 0.4 + (Math.random() - 0.5) * 1.6;
+        msPos[i * 3 + 1] = by + (Math.random() - 0.5) * 2.2;
+        msPos[i * 3 + 2] = bz + Math.sin(t * 5) * sway * 0.4 + (Math.random() - 0.5) * 1.6;
+        const f = (1 - e) * 0.6 + 0.12;
+        msCol[i * 3] = 0.55 * f; msCol[i * 3 + 1] = 0.85 * f; msCol[i * 3 + 2] = f;
+      }
+      const msGeo = new THREE.BufferGeometry();
+      msGeo.setAttribute("position", new THREE.BufferAttribute(msPos, 3));
+      msGeo.setAttribute("color", new THREE.BufferAttribute(msCol, 3));
+      g.add(
+        new THREE.Points(
+          msGeo,
+          new THREE.PointsMaterial({
+            size: 0.34, map: this.dotTex, vertexColors: true,
+            transparent: true, opacity: 0.8,
+            blending: THREE.AdditiveBlending, depthWrite: false,
+          })
+        )
+      );
+    }
   }
 
   /* comets big and bright enough to see across the entire cluster */
@@ -4785,7 +4875,10 @@ export class GlobeEngine {
     this.flight = null;
     const out = lg.world.clone().normalize();
     if (out.lengthSq() < 1e-6) out.set(0, 0, 1);
-    const dist = Math.max(lg.def.scale * 1.1, 24);
+    /* stand well OUTSIDE the disc so the whole galaxy is framed on screen —
+       hovering at scale*1.1 drops the camera into the disc where the
+       thin, transparent particle plane renders as nothing → black screen */
+    const dist = Math.max(lg.def.scale * 2.4, 36);
     const to = lg.world.clone().addScaledVector(out, dist);
     this.startFlight(to, lg.world.clone(), 2.6, () => {
       const rel = this.camera.position.clone().sub(lg.world);

@@ -3,14 +3,21 @@ import { gsap } from "gsap";
 import { audio } from "../audio/tacticalAudio";
 import { EXO_PLANETS, GALAXY_STARS, NEIGHBOR_GALAXIES, type ExoPlanetStyle } from "../data/planets";
 import { LOCAL_GROUP_GALAXIES, type LocalGroupGalaxy } from "../data/localGroup";
+import {
+  GALAXY_INTERIOR_STARS_BY_GALAXY,
+  GALAXY_INTERIOR_PLANETS_BY_GALAXY,
+  GALAXY_INTERIOR_CONFIGS,
+  type GalaxyInteriorStar,
+  type GalaxyInteriorPlanet,
+} from "../data/galaxyInteriors";
 
 /* =====================================================================
  *  GLOBE ENGINE — Tactical 3D sphere with GLSL atmosphere, particles,
  *  procedural grid textures, mission nodes and GSAP camera fly-to.
  * ===================================================================== */
 
-export type BodyMode = "earth" | "moon" | "sol" | "system" | "galaxy" | "localGroup";
-type SingleBodyMode = Exclude<BodyMode, "system" | "galaxy" | "localGroup">;
+export type BodyMode = "earth" | "moon" | "sol" | "system" | "galaxy" | "localGroup" | "galaxyInterior";
+type SingleBodyMode = Exclude<BodyMode, "system" | "galaxy" | "localGroup" | "galaxyInterior">;
 
 export type DoomMethod = "void" | "supernova" | "dissolve" | "meteor";
 
@@ -43,6 +50,7 @@ const BODY_CFG: Record<
   system: { scale: 1, camDist: 34, atmo: 0xffb000, glow: 0xff7b00, spin: 0.008 },
   galaxy: { scale: 1, camDist: 170, atmo: 0xffb000, glow: 0xff7b00, spin: 0.008 },
   localGroup: { scale: 1, camDist: 420, atmo: 0xffb000, glow: 0xff7b00, spin: 0.008 },
+  galaxyInterior: { scale: 1, camDist: 80, atmo: 0xffb000, glow: 0xff7b00, spin: 0.008 },
 };
 
 /* ---------------- math helpers ---------------- */
@@ -1025,6 +1033,30 @@ export class GlobeEngine {
     nucleus: THREE.Sprite; glow: THREE.Sprite; trail: THREE.Line;
     pts: THREE.Vector3[]; tmp: THREE.Vector3;
   }[] = [];
+
+  /* ---- GALAXY INTERIOR (星系内部) — enter any galaxy, view its stars & planets ---- */
+  private galaxyInteriorGroup = new THREE.Group();
+  private galaxyInteriorCurrent: string | null = null;
+  private galaxyInteriorStars: {
+    def: GalaxyInteriorStar;
+    mesh: THREE.Mesh;
+    glow: THREE.Sprite;
+    world: THREE.Vector3;
+  }[] = [];
+  private galaxyInteriorPlanets: {
+    def: GalaxyInteriorPlanet;
+    pivot: THREE.Group;
+    mesh: THREE.Mesh;
+    glow: THREE.Sprite;
+    angle: number;
+    world: THREE.Vector3;
+  }[] = [];
+  private galaxyInteriorBg: THREE.Points | null = null;
+  private galaxyInteriorLocal = { theta: 0.5, phi: 1.2, radius: 60 };
+  private galaxyInteriorFocusId: string | null = null;
+  private hoverGalaxyInterior: string | null = null;
+  private onGalaxyInteriorStarClick?: (id: string) => void;
+
   /* moon as its own body — camera flies to the real orbiting moon */
   private moonFocus = false;
   private moonLocal = { theta: 0.4, phi: 1.35, radius: 1.7 };
@@ -1079,6 +1111,7 @@ export class GlobeEngine {
       onGalaxyClick?: (id: string) => void;
       onExoPlanetClick?: (id: string) => void;
       onLocalGalaxyClick?: (id: string) => void;
+      onGalaxyInteriorStarClick?: (id: string) => void;
     } = {}
   ) {
     this.container = container;
@@ -1098,6 +1131,7 @@ export class GlobeEngine {
     this.onGalaxyClick = opts.onGalaxyClick;
     this.onExoPlanetClick = opts.onExoPlanetClick;
     this.onLocalGalaxyClick = opts.onLocalGalaxyClick;
+    this.onGalaxyInteriorStarClick = opts.onGalaxyInteriorStarClick;
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -1136,6 +1170,8 @@ export class GlobeEngine {
     this.scene.add(this.solarRoot);
     this.galaxyGroup.visible = false;
     this.scene.add(this.galaxyGroup);
+    this.galaxyInteriorGroup.visible = false;
+    this.scene.add(this.galaxyInteriorGroup);
 
     /* body tilt — the whole solar system lives under solarRoot so it can
        shrink into a single point when we zoom out to the galaxy */
@@ -1733,6 +1769,19 @@ export class GlobeEngine {
 
   switchBody(mode: BodyMode) {
     if (this.switching) return;
+    /* GALAXY INTERIOR — enter an extragalactic star system */
+    if (mode === "galaxyInterior") {
+      if (this.mode === "galaxyInterior") return;
+      /* entering from localGroup — the user must have a focused galaxy */
+      if (this.mode === "localGroup" && this.localGroupFocusId) {
+        this.enterGalaxyInterior(this.localGroupFocusId);
+      }
+      return;
+    }
+    if (this.mode === "galaxyInterior") {
+      this.exitGalaxyInterior();
+      return;
+    }
     /* GALAXY — zoom out to the milky way / back in */
     if (mode === "galaxy") {
       if (this.mode === "localGroup") this.exitLocalGroup();
@@ -4863,6 +4912,360 @@ export class GlobeEngine {
     this.idleUntil = this.time + 3;
   }
 
+  /* ============================================================
+   *  GALAXY INTERIOR — enter the star system of any galaxy
+   *  Shows real known stars, star clusters, and exoplanets
+   *  inside the selected galaxy. Procedural spiral structure
+   *  creates the backdrop.
+   * ============================================================ */
+
+  /** enter a galaxy's interior — real stars + planets + procedural backdrop */
+  enterGalaxyInterior(galaxyId: string) {
+    const cfg = GALAXY_INTERIOR_CONFIGS[galaxyId];
+    if (!cfg) return;
+    this.finishFlight();
+    this.localGroupFocusId = null;
+    this.galaxyInteriorFocusId = null;
+    this.hoverGalaxyInterior = null;
+    this.mode = "galaxyInterior";
+
+    /* hide local group, show interior */
+    this.localGroupGroup.visible = false;
+    this.galaxyGroup.visible = false;
+    this.stars.visible = false;
+
+    /* build interior on-demand */
+    this.buildGalaxyInterior(galaxyId);
+
+    this.galaxyInteriorGroup.visible = true;
+    this.galaxyInteriorGroup.scale.setScalar(0.6);
+    gsap.to(this.galaxyInteriorGroup.scale, { x: 1, y: 1, z: 1, duration: 0.8, ease: "power1.out" });
+
+    this.galaxyInteriorLocal = { theta: 0.5, phi: 1.2, radius: cfg.discRadius * 2.2 };
+    this.homeSph = { theta: 0.5, phi: 1.2, radius: cfg.discRadius * 2.2 };
+    this.lookAt.set(0, 0, 0);
+    this.idleUntil = this.time + 3;
+  }
+
+  /** focus a specific star inside a galaxy interior */
+  focusGalaxyInteriorStar(id: string) {
+    const s = this.galaxyInteriorStars.find((x) => x.def.id === id);
+    if (!s || this.mode !== "galaxyInterior") return;
+    this.galaxyInteriorFocusId = id;
+    this.flight = null;
+    const out = s.world.clone().normalize();
+    if (out.lengthSq() < 1e-6) out.set(0, 0, 1);
+    const r = (s.mesh.geometry as THREE.SphereGeometry).parameters.radius;
+    const dist = Math.max(r * 4, 2.6);
+    const to = s.world.clone().addScaledVector(out, dist);
+    this.startFlight(to, s.world.clone(), 1.6, () => {
+      const rel = this.camera.position.clone().sub(s.world);
+      const len = rel.length() || 1;
+      this.galaxyInteriorLocal = {
+        theta: Math.atan2(rel.x, rel.z),
+        phi: Math.acos(THREE.MathUtils.clamp(rel.y / len, -1, 1)),
+        radius: len,
+      };
+    });
+    this.idleUntil = this.time + 3;
+  }
+
+  clearGalaxyInteriorFocus() {
+    this.galaxyInteriorFocusId = null;
+    const cfg = this.galaxyInteriorCurrent ? GALAXY_INTERIOR_CONFIGS[this.galaxyInteriorCurrent] : null;
+    const r = cfg ? cfg.discRadius * 2.2 : 60;
+    this.galaxyInteriorLocal = { theta: 0.5, phi: 1.2, radius: r };
+    this.lookAt.set(0, 0, 0);
+  }
+
+  /** exit the galaxy interior back to the local group */
+  exitGalaxyInterior() {
+    this.galaxyInteriorFocusId = null;
+    this.hoverGalaxyInterior = null;
+    this.galaxyInteriorGroup.visible = false;
+    this.galaxyGroup.visible = false;
+    this.localGroupGroup.visible = true;
+    this.localGroupGroup.scale.setScalar(0.55);
+    gsap.to(this.localGroupGroup.scale, { x: 1, y: 1, z: 1, duration: 0.6, ease: "power1.out" });
+    this.mode = "localGroup";
+    this.sph.radius = Math.min(this.sph.radius, 430);
+    this.homeSph = { theta: this.sph.theta, phi: 1.1, radius: 430 };
+    this.lookAt.set(0, 0, 0);
+    this.idleUntil = this.time + 3;
+  }
+
+  /** build the procedural + real-object galaxy interior view */
+  private buildGalaxyInterior(galaxyId: string) {
+    const cfg = GALAXY_INTERIOR_CONFIGS[galaxyId];
+    if (!cfg || this.galaxyInteriorCurrent === galaxyId) return;
+    this.galaxyInteriorCurrent = galaxyId;
+
+    const g = this.galaxyInteriorGroup;
+    /* clear any previous interior */
+    while (g.children.length > 0) {
+      const child = g.children[0];
+      this.disposeRecursive(child);
+      g.remove(child);
+    }
+    this.galaxyInteriorStars = [];
+    this.galaxyInteriorPlanets = [];
+    this.galaxyInteriorBg = null;
+
+    const makeStars = (
+      count: number,
+      colorFn: () => THREE.Color,
+      gen: (i: number) => { x: number; y: number; z: number },
+      size: number,
+      opacity: number
+    ) => {
+      const pos = new Float32Array(count * 3);
+      const col = new Float32Array(count * 3);
+      for (let i = 0; i < count; i++) {
+        const p = gen(i);
+        pos[i * 3] = p.x;
+        pos[i * 3 + 1] = p.y;
+        pos[i * 3 + 2] = p.z;
+        const c = colorFn();
+        col[i * 3] = c.r;
+        col[i * 3 + 1] = c.g;
+        col[i * 3 + 2] = c.b;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+      const pts = new THREE.Points(
+        geo,
+        new THREE.PointsMaterial({
+          size,
+          map: this.dotTex,
+          vertexColors: true,
+          transparent: true,
+          opacity,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        })
+      );
+      g.add(pts);
+      return pts;
+    };
+
+    const starColor = () => {
+      const r = Math.random();
+      if (r < 0.08) return new THREE.Color(0x9fc8ff);
+      if (r < 0.3) return new THREE.Color(0xfff4d0);
+      if (r < 0.65) return new THREE.Color(0xffffff);
+      return new THREE.Color(0xffb98a);
+    };
+
+    /* ---- spiral arms (for spiral galaxies) ---- */
+    if (cfg.spiralArms > 0) {
+      const discGen = () => {
+        const arm = Math.floor(Math.random() * cfg.spiralArms);
+        const armTheta = (arm / cfg.spiralArms) * Math.PI * 2;
+        let r = cfg.coreRadius + Math.pow(Math.random(), 0.55) * (cfg.discRadius - cfg.coreRadius);
+        const theta = armTheta + Math.log(r / cfg.coreRadius) / Math.tan(cfg.armPitch);
+        const sigma = cfg.armWidth * (1 + r * 0.08);
+        const jitter = (Math.random() + Math.random() + Math.random() - 1.5) * sigma;
+        const x = Math.cos(theta) * r + Math.cos(theta + Math.PI / 2) * jitter;
+        const z = Math.sin(theta) * r + Math.sin(theta + Math.PI / 2) * jitter;
+        const y = (Math.random() + Math.random() - 1) * (0.5 + r * 0.04);
+        return { x, y, z };
+      };
+      makeStars(cfg.starCount * 6, starColor, discGen, 0.14, 0.9);
+    }
+
+    /* ---- central bulge ---- */
+    const bulgeGen = () => {
+      let x = 0, y = 0, z = 0, r = 0;
+      do {
+        x = (Math.random() * 2 - 1) * cfg.coreRadius;
+        y = (Math.random() * 2 - 1) * cfg.coreRadius * 0.7;
+        z = (Math.random() * 2 - 1) * cfg.coreRadius;
+        r = Math.hypot(x, y * 1.4, z);
+      } while (r > cfg.coreRadius);
+      return { x, y, z };
+    };
+    makeStars(cfg.starCount * 2, () => new THREE.Color(cfg.coreColor), bulgeGen, 0.18, 0.85);
+
+    /* ---- irregular/elliptical cloud (for non-spiral galaxies) ---- */
+    if (cfg.spiralArms === 0) {
+      const cloudGen = () => {
+        let x = 0, y = 0, z = 0;
+        do {
+          x = (Math.random() * 2 - 1) * cfg.discRadius;
+          y = (Math.random() * 2 - 1) * cfg.discRadius * 0.55;
+          z = (Math.random() * 2 - 1) * cfg.discRadius;
+        } while (Math.hypot(x, y, z) > cfg.discRadius);
+        return { x, y, z };
+      };
+      makeStars(cfg.starCount * 4, starColor, cloudGen, 0.12, 0.7);
+    }
+
+    /* ---- dust lanes ---- */
+    if (cfg.dustAmount > 0 && cfg.spiralArms > 0) {
+      const dustGen = () => {
+        const arm = Math.floor(Math.random() * cfg.spiralArms);
+        const armTheta = (arm / cfg.spiralArms) * Math.PI * 2;
+        const r = cfg.coreRadius + 1 + Math.pow(Math.random(), 0.5) * (cfg.discRadius - cfg.coreRadius);
+        const theta = armTheta + Math.log(r / cfg.coreRadius) / Math.tan(cfg.armPitch) + 0.12;
+        const sigma = cfg.armWidth * 0.5;
+        const jitter = (Math.random() + Math.random() - 1) * sigma;
+        return {
+          x: Math.cos(theta) * r + Math.cos(theta + Math.PI / 2) * jitter,
+          y: (Math.random() - 0.5) * 0.3,
+          z: Math.sin(theta) * r + Math.sin(theta + Math.PI / 2) * jitter,
+        };
+      };
+      makeStars(Math.floor(cfg.starCount * cfg.dustAmount), () => new THREE.Color(0x5a3018), dustGen, 0.18, 0.18);
+    }
+
+    /* ---- core glow ---- */
+    const coreGlow = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: this.dotTex,
+        color: cfg.coreColor,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0.45,
+        depthWrite: false,
+      })
+    );
+    coreGlow.scale.setScalar(cfg.coreRadius * 3);
+    g.add(coreGlow);
+
+    /* ---- real known stars ---- */
+    const stars = GALAXY_INTERIOR_STARS_BY_GALAXY[galaxyId] ?? [];
+    for (const s of stars) {
+      const pos = new THREE.Vector3(s.pos[0], s.pos[1], s.pos[2]);
+      const mesh = this.buildStarMesh(s.type, s.color);
+      mesh.position.copy(pos);
+      g.add(mesh);
+      const glow = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: this.dotTex,
+          color: s.color,
+          blending: THREE.AdditiveBlending,
+          transparent: true,
+          depthWrite: false,
+          opacity: 0.7,
+        })
+      );
+      glow.scale.setScalar(1.3);
+      glow.position.copy(pos);
+      g.add(glow);
+      this.galaxyInteriorStars.push({
+        def: s,
+        mesh,
+        glow,
+        world: new THREE.Vector3().copy(pos),
+      });
+    }
+
+    /* ---- real known exoplanets ---- */
+    const planets = GALAXY_INTERIOR_PLANETS_BY_GALAXY[galaxyId] ?? [];
+    for (const p of planets) {
+      const parentStar = this.galaxyInteriorStars.find((s) => s.def.id === p.parentStarId);
+      const pivot = new THREE.Group();
+      if (parentStar) {
+        pivot.position.copy(parentStar.world);
+      }
+      const tex = this.makeExoTexture("gas"); // use gas giant texture
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(p.radius * 1.5, 32, 24),
+        new THREE.MeshPhongMaterial({
+          map: tex,
+          emissive: 0x101018,
+          emissiveIntensity: 0.3,
+          specular: 0x334455,
+          shininess: 12,
+        })
+      );
+      mesh.position.set(Math.cos(p.phase) * p.orbit, 0, Math.sin(p.phase) * p.orbit);
+      pivot.add(mesh);
+      const glow = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: this.dotTex,
+          color: p.color,
+          blending: THREE.AdditiveBlending,
+          transparent: true,
+          depthWrite: false,
+          opacity: 0.4,
+        })
+      );
+      glow.scale.setScalar(p.radius * 3.5);
+      mesh.add(glow);
+      g.add(pivot);
+      this.galaxyInteriorPlanets.push({
+        def: p,
+        pivot,
+        mesh,
+        glow,
+        angle: p.phase,
+        world: new THREE.Vector3(),
+      });
+    }
+
+    /* ---- background field stars ---- */
+    const bgCount = 400;
+    const bgPos = new Float32Array(bgCount * 3);
+    const bgCol = new Float32Array(bgCount * 3);
+    const fieldCols = [0x9fc8ff, 0xfff4d0, 0xffd8a0, 0xe0c8ff];
+    for (let i = 0; i < bgCount; i++) {
+      const rr = cfg.discRadius * 1.8 + Math.random() * cfg.discRadius * 2;
+      const th = Math.random() * Math.PI * 2;
+      const ph = Math.acos(Math.random() * 2 - 1);
+      bgPos[i * 3] = rr * Math.sin(ph) * Math.cos(th);
+      bgPos[i * 3 + 1] = rr * Math.cos(ph) * 0.5;
+      bgPos[i * 3 + 2] = rr * Math.sin(ph) * Math.sin(th);
+      const c = new THREE.Color(fieldCols[(Math.random() * fieldCols.length) | 0]);
+      bgCol[i * 3] = c.r;
+      bgCol[i * 3 + 1] = c.g;
+      bgCol[i * 3 + 2] = c.b;
+    }
+    const bgGeo = new THREE.BufferGeometry();
+    bgGeo.setAttribute("position", new THREE.BufferAttribute(bgPos, 3));
+    bgGeo.setAttribute("color", new THREE.BufferAttribute(bgCol, 3));
+    this.galaxyInteriorBg = new THREE.Points(
+      bgGeo,
+      new THREE.PointsMaterial({
+        size: 0.4,
+        map: this.dotTex,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.5,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    g.add(this.galaxyInteriorBg);
+  }
+
+  private disposeRecursive(obj: THREE.Object3D) {
+    if (obj instanceof THREE.Mesh) {
+      obj.geometry?.dispose();
+      if (Array.isArray(obj.material)) {
+        obj.material.forEach((m) => m.dispose());
+      } else {
+        obj.material?.dispose();
+      }
+    }
+    if (obj instanceof THREE.Points) {
+      obj.geometry?.dispose();
+      if (Array.isArray(obj.material)) {
+        obj.material.forEach((m) => m.dispose());
+      } else {
+        (obj.material as THREE.Material)?.dispose();
+      }
+    }
+    if (obj instanceof THREE.Sprite) {
+      (obj.material as THREE.Material)?.dispose();
+    }
+    while (obj.children.length > 0) {
+      this.disposeRecursive(obj.children[0]);
+      obj.remove(obj.children[0]);
+    }
+  }
+
   /** fly the camera into a neighbour galaxy */
   focusGalaxy(id: string) {
     const g = this.neighborGalaxies.find((x) => x.id === id);
@@ -5832,7 +6235,11 @@ export class GlobeEngine {
        object under the finger even if it drifted a few px since pointerdown */
     if (wasClick) this.updateHover(e);
     if (this.annihilation) return;
-    /* click (not drag) → galaxy stars · UFO easter egg · node · celestial body */
+    /* click (not drag) → galaxy interior · local group · galaxy stars · UFO easter egg · node · celestial body */
+    if (wasClick && this.mode === "galaxyInterior" && this.hoverGalaxyInterior && this.onGalaxyInteriorStarClick) {
+      this.onGalaxyInteriorStarClick(this.hoverGalaxyInterior);
+      return;
+    }
     if (wasClick && this.mode === "localGroup" && this.hoverLocalGalaxy && this.onLocalGalaxyClick) {
       this.onLocalGalaxyClick(this.hoverLocalGalaxy);
       return;
@@ -6023,6 +6430,35 @@ export class GlobeEngine {
     if (!this.onHover) return;
     if (this.annihilation) {
       this.onHover(null);
+      return;
+    }
+
+    /* galaxy interior — hover the real stars */
+    if (this.mode === "galaxyInterior") {
+      const rect = this.container.getBoundingClientRect();
+      const ndcX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      const ndcY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      let best: { id: string; name: string; color: string } | null = null;
+      let bestD = 0.06;
+      for (const s of this.galaxyInteriorStars) {
+        s.mesh.updateWorldMatrix(true, false);
+        s.mesh.getWorldPosition(this.tmpV);
+        this.tmpV.project(this.camera);
+        if (this.tmpV.z > 1) continue;
+        const d = Math.hypot(this.tmpV.x - ndcX, this.tmpV.y - ndcY);
+        if (d < bestD) {
+          bestD = d;
+          best = { id: s.def.id, name: s.def.name, color: s.def.color };
+        }
+      }
+      this.hoverGalaxyInterior = best ? best.id : null;
+      if (best) {
+        this.renderer.domElement.style.cursor = "pointer";
+        this.onHover({ id: best.id, name: best.name, color: best.color, x: e.clientX, y: e.clientY });
+      } else {
+        this.renderer.domElement.style.cursor = "crosshair";
+        this.onHover(null);
+      }
       return;
     }
 
@@ -6302,7 +6738,7 @@ export class GlobeEngine {
     }
 
     /* texture scroll */
-    if (this.mode !== "system" && this.mode !== "galaxy" && this.mode !== "localGroup") {
+    if (this.mode !== "system" && this.mode !== "galaxy" && this.mode !== "localGroup" && this.mode !== "galaxyInterior") {
       const spinTarget = this.activeId ? 0.0009 : BODY_CFG[this.mode].spin;
       const tex = this.bodyTex[this.mode];
       tex.offset.x -= dt * spinTarget;
@@ -6636,6 +7072,32 @@ export class GlobeEngine {
       }
     }
 
+    /* galaxy interior — real stars + planets + procedural backdrop */
+    if (this.mode === "galaxyInterior" && this.galaxyInteriorGroup.visible) {
+      this.galaxyInteriorGroup.rotation.y += dt * 0.005;
+      this.galaxyInteriorGroup.updateMatrixWorld(true);
+      /* twinkle star markers */
+      for (const s of this.galaxyInteriorStars) {
+        s.mesh.updateWorldMatrix(true, false);
+        s.mesh.getWorldPosition(s.world);
+        s.mesh.rotation.y += dt * 0.1;
+        const gm = s.glow.material as THREE.SpriteMaterial;
+        gm.opacity = 0.65 + Math.sin(this.time * 2.4 + s.world.x) * 0.25;
+      }
+      /* orbiting planets */
+      for (const p of this.galaxyInteriorPlanets) {
+        p.angle += p.def.speed * dt;
+        p.mesh.position.set(
+          Math.cos(p.angle) * p.def.orbit,
+          0,
+          Math.sin(p.angle) * p.def.orbit
+        );
+        p.mesh.rotation.y += dt * 0.08;
+        p.pivot.updateWorldMatrix(true, false);
+        p.mesh.getWorldPosition(p.world);
+      }
+    }
+
     /* camera — states: star focus · exoplanet focus · galaxy focus · local group · flight · satellite · moon · planet · free */
     if (this.starFocusId && this.mode === "galaxy" && !this.flight) {
       const m = this.starMarkers.find((x) => x.id === this.starFocusId);
@@ -6671,6 +7133,13 @@ export class GlobeEngine {
       } else {
         this.localGroupFocusId = null;
       }
+    } else if (this.galaxyInteriorFocusId && this.mode === "galaxyInterior" && !this.flight) {
+      const s = this.galaxyInteriorStars.find((x) => x.def.id === this.galaxyInteriorFocusId);
+      if (s) {
+        this.followTarget(s.world, this.galaxyInteriorLocal, dt, 0.06);
+      } else {
+        this.galaxyInteriorFocusId = null;
+      }
     } else if (this.satFocus && this.mode === "earth" && !this.flight) {
       /* first-person view riding the facility */
       this.tmpV.copy(this.satFocus.world).normalize();
@@ -6698,7 +7167,8 @@ export class GlobeEngine {
         this.focusPlanetId = null;
       }
     } else {
-      const { theta, phi, radius } = this.sph;
+      const local = this.mode === "galaxyInterior" ? this.galaxyInteriorLocal : this.sph;
+      const { theta, phi, radius } = local;
       this.camera.position.set(
         radius * Math.sin(phi) * Math.sin(theta),
         radius * Math.cos(phi),

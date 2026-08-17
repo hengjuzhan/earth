@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GalaxyStar, NeighborGalaxy, Planet } from "../data/planets";
+import type { GalaxyInteriorStar } from "../data/galaxyInteriors";
 import { useTypewriter } from "../hooks/useTypewriter";
 import { audio } from "../audio/tacticalAudio";
 import { cn } from "../utils/cn";
@@ -15,6 +16,7 @@ interface Props {
   star: GalaxyStar | null;
   galaxy: NeighborGalaxy | null;
   planet: Planet | null;
+  interiorStar: GalaxyInteriorStar | null;
   onWide: () => void;
 }
 
@@ -52,6 +54,55 @@ function StarDossier({
           ✦ {lang === "zh" ? star.zh : star.name}
         </span>
         <span className="text-[8px] text-amber-300/80 blink">● {t(lang, "starDossier")}</span>
+      </div>
+      <div className="hud-scroll min-h-0 flex-1 overflow-y-auto px-3 py-2">
+        <p className="whitespace-pre-wrap text-[10px] leading-relaxed text-cyan-100/85">
+          {display}
+          {!done && <span className="tc-cursor" />}
+        </p>
+      </div>
+      <div className="flex gap-2 border-t border-cyan-400/20 p-2.5">
+        <button onClick={() => { audio.click(); skip(); }} className="hud-btn flex-1 px-2 py-2 text-[10px] tracking-[0.25em] text-cyan-200/70">
+          {t(lang, "skip")} &gt;&gt;
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- galaxy interior star dossier ---------------- */
+
+function InteriorStarDossier({
+  lang,
+  star,
+  display,
+  done,
+  skip,
+}: {
+  lang: Lang;
+  star: GalaxyInteriorStar;
+  display: string;
+  done: boolean;
+  skip: () => void;
+}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="grid grid-cols-2 gap-px border-b border-cyan-400/20 bg-cyan-400/10">
+        {[
+          [t(lang, "starType"), star.type],
+          [star.subtype, star.zh],
+        ].map(([k, v]) => (
+          <div key={k} className="bg-[#060d1a] px-2.5 py-1.5">
+            <div className="text-[8px] tracking-[0.2em] text-cyan-200/45">{k}</div>
+            <div className="font-disp text-[12px] font-bold text-cyan-100">{v}</div>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center justify-between border-b border-cyan-400/20 px-3 py-1.5">
+        <span className="text-[11px] tracking-[0.2em]" style={{ color: star.color, textShadow: `0 0 8px ${star.color}66` }}>
+          ◈ {lang === "zh" ? star.zh : star.name}
+        </span>
+        <span className="text-[8px] text-pink-300/80 blink">● {t(lang, "galaxyDossier")}</span>
       </div>
       <div className="hud-scroll min-h-0 flex-1 overflow-y-auto px-3 py-2">
         <p className="whitespace-pre-wrap text-[10px] leading-relaxed text-cyan-100/85">
@@ -202,7 +253,7 @@ function PlanetDossier({
   );
 }
 
-export default function IntelPanel({ lang, star, galaxy, planet, onWide }: Props) {
+export default function IntelPanel({ lang, star, galaxy, planet, interiorStar, onWide }: Props) {
   const [collapsed, setCollapsed] = useState(false);
   /* draggable position — default bottom-left, saved while you drag */
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -210,6 +261,7 @@ export default function IntelPanel({ lang, star, galaxy, planet, onWide }: Props
   const panelRef = useRef<HTMLDivElement>(null);
 
   const briefText = useMemo(() => {
+    if (interiorStar) return lang === "zh" ? interiorStar.briefing[0] : interiorStar.briefing[1];
     if (galaxy) return lang === "zh" ? galaxy.briefing[0] : galaxy.briefing[1];
     if (planet) {
       return lang === "zh" && PLANET_BRIEF_ZH[planet.id]
@@ -218,14 +270,14 @@ export default function IntelPanel({ lang, star, galaxy, planet, onWide }: Props
     }
     if (star) return lang === "zh" ? star.briefing[0] : star.briefing[1];
     return "";
-  }, [galaxy, planet, star, lang]);
+  }, [galaxy, planet, star, interiorStar, lang]);
 
   const { display, done, skip } = useTypewriter(briefText, 13, !!briefText);
   const [showData, setShowData] = useState(false);
 
   useEffect(() => {
     setShowData(false);
-  }, [star?.id, galaxy?.id, planet?.id]);
+  }, [star?.id, galaxy?.id, planet?.id, interiorStar?.id]);
 
   useEffect(() => {
     if (done) {
@@ -295,12 +347,12 @@ export default function IntelPanel({ lang, star, galaxy, planet, onWide }: Props
               <span
                 className={cn(
                   "border px-1.5 py-[1px] text-[8px] tracking-[0.2em]",
-                  star || galaxy || planet
+                  star || galaxy || planet || interiorStar
                     ? "border-amber-400/50 text-amber-300"
                     : "border-cyan-400/30 text-cyan-200/60"
                 )}
               >
-                {galaxy ? t(lang, "galaxyDossier") : planet ? t(lang, "celestialBody") : star ? t(lang, "starDossier") : t(lang, "idle")}
+                {galaxy ? t(lang, "galaxyDossier") : planet ? t(lang, "celestialBody") : interiorStar ? t(lang, "galaxyDossier") : star ? t(lang, "starDossier") : t(lang, "idle")}
               </span>
               <button
                 onClick={() => { setCollapsed(true); audio.click(); }}
@@ -312,8 +364,16 @@ export default function IntelPanel({ lang, star, galaxy, planet, onWide }: Props
             </span>
           </div>
 
-          {/* body — priority: galaxy > planet > star > idle */}
-          {galaxy ? (
+          {/* body — priority: interiorStar > galaxy > planet > star > idle */}
+          {interiorStar ? (
+            <InteriorStarDossier
+              lang={lang}
+              star={interiorStar}
+              display={display}
+              done={done}
+              skip={skip}
+            />
+          ) : galaxy ? (
             <GalaxyDossier
               lang={lang}
               galaxy={galaxy}

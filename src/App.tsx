@@ -252,6 +252,11 @@ export default function App() {
       setGalaxyInteriorPlanet(null);
       return;
     }
+    /* if currently in galaxyInterior, the engine exits it and chains to the new mode */
+    if (bodyMode === "galaxyInterior") {
+      setGalaxyInteriorStar(null);
+      setGalaxyInteriorPlanet(null);
+    }
     /* LOCAL GROUP — one zoom level past the galaxy */
     if (mode === "localGroup") {
       eng?.switchBody("localGroup");
@@ -425,6 +430,7 @@ export default function App() {
     setLocalGalaxy(null);
     setStar(null);
     setSelectedPlanetId(null);
+    engineRef.current?.focusGalaxyInteriorPlanet(id);
     pushLog(
       L(`◈ 河外行星 · ${planet.zh}`, `◈ EXTRAGALACTIC PLANET · ${planet.name}`),
       "info"

@@ -18,7 +18,6 @@ const MODULES: { id: string; icon: string; color: string; label: (l: Lang) => st
   { id: "system", icon: "☉", color: "#FFB000", label: (l) => (l === "zh" ? "太阳系" : "SYSTEM") },
   { id: "galaxy", icon: "🌌", color: "#B44CFF", label: (l) => (l === "zh" ? "银河系" : "GALAXY") },
   { id: "localGroup", icon: "✧", color: "#7DE0FF", label: (l) => (l === "zh" ? "本星系群" : "LOCAL GROUP") },
-  { id: "galaxyInterior", icon: "◈", color: "#FF9AD5", label: (l) => (l === "zh" ? "星系内部" : "INTERIOR") },
 ];
 
 export default function ModuleBar({ lang, bodyMode, onModule }: Props) {

@@ -4897,14 +4897,15 @@ export class GlobeEngine {
     this.flight = null;
     const out = lg.world.clone().normalize();
     if (out.lengthSq() < 1e-6) out.set(0, 0, 1);
-    /* stand well OUTSIDE the disc so the whole galaxy is framed on screen —
-       hovering at scale*1.1 drops the camera into the disc where the
-       thin, transparent particle plane renders as nothing → black screen */
-    const dist = Math.max(lg.def.scale * 2.4, 36);
-    const to = lg.world.clone().addScaledVector(out, dist);
-    this.startFlight(to, lg.world.clone(), 2.6, () => {
-      const rel = this.camera.position.clone().sub(lg.world);
-      const len = rel.length() || 1;
+    /* stand OUTSIDE the disc AND tilted ABOVE the disc plane — the thin
+	       particle plane renders as nothing (black screen) when edge-on */
+	    const dist = Math.max(lg.def.scale * 2.4, 36);
+	    const to = lg.world.clone().addScaledVector(out, dist);
+	    to.y += dist * 0.35; /* tilt above disc plane to avoid edge-on view */
+	    const worldAtClick = lg.world.clone(); /* snapshot before galaxy rotates */
+	    this.startFlight(to, worldAtClick, 2.6, () => {
+	      const rel = this.camera.position.clone().sub(worldAtClick);
+	      const len = rel.length() || 1;
       this.localGroupLocal = {
         theta: Math.atan2(rel.x, rel.z),
         phi: Math.acos(THREE.MathUtils.clamp(rel.y / len, -1, 1)),
@@ -5008,9 +5009,18 @@ export class GlobeEngine {
     this.galaxyInteriorGroup.scale.setScalar(0.6);
     gsap.to(this.galaxyInteriorGroup.scale, { x: 1, y: 1, z: 1, duration: 0.8, ease: "power1.out" });
 
-    this.galaxyInteriorLocal = { theta: 0.5, phi: 1.2, radius: cfg.discRadius * 2.2 };
-    this.homeSph = { theta: 0.5, phi: 1.2, radius: cfg.discRadius * 2.2 };
-    this.lookAt.set(0, 0, 0);
+    /* fly the camera into the interior — avoid a frame-zero jump that
+       leaves the camera far outside the interior scene (black screen) */
+    const targetRadius = cfg.discRadius * 2.2;
+    this.galaxyInteriorLocal = { theta: 0.5, phi: 1.2, radius: targetRadius };
+    this.homeSph = { theta: 0.5, phi: 1.2, radius: targetRadius };
+    const to = this.sphToVec({ theta: 0.5, phi: 1.2, radius: targetRadius });
+    this.startFlight(to, new THREE.Vector3(0, 0, 0), 1.8, () => {
+      const s = cartesianToSph(this.camera.position);
+      this.galaxyInteriorLocal = { theta: s.theta, phi: s.phi, radius: s.radius };
+      this.homeSph = { theta: s.theta, phi: s.phi, radius: s.radius };
+      this.lookAt.set(0, 0, 0);
+    });
     this.idleUntil = this.time + 3;
   }
 
@@ -6685,7 +6695,8 @@ export class GlobeEngine {
       /* camera stays OUTSIDE the disc — zooming inside a thin particle plane
          renders as nothing (black screen) */
       const min = lg ? Math.max(lg.def.scale * 1.4, 10) : 14;
-      return THREE.MathUtils.clamp(r, min, 80);
+      const max = lg ? Math.max(lg.def.scale * 2.8, 80) : 80;
+      return THREE.MathUtils.clamp(r, min, max);
     }
     if (this.exoFocusId && this.mode === "galaxy") {
       const ex = this.exoPlanets.find((x) => x.def.id === this.exoFocusId);

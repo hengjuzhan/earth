@@ -1042,6 +1042,7 @@ export class GlobeEngine {
     name: string;
     color: string;
     glow: THREE.Sprite;
+    reticle: THREE.Sprite;
     world: THREE.Vector3;
     mesh: THREE.Mesh;
     orbit?: { center: THREE.Vector3; axis: THREE.Vector3; phase: number; rate: number; radius: number };
@@ -1055,6 +1056,7 @@ export class GlobeEngine {
     pivot: THREE.Group;
     mesh: THREE.Mesh;
     glow: THREE.Sprite;
+    orbitDist: number;
     angle: number;
     world: THREE.Vector3;
     parentStarId: string;
@@ -4206,6 +4208,31 @@ export class GlobeEngine {
     return tex;
   }
 
+  /** thin glowing ring — targeting reticle for clickable interior stars */
+  private makeRingTexture(): THREE.CanvasTexture {
+    const s = 128;
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = s;
+    const g = canvas.getContext("2d")!;
+    g.clearRect(0, 0, s, s);
+    g.strokeStyle = "rgba(255,255,255,0.95)";
+    g.lineWidth = 5;
+    g.beginPath();
+    g.arc(s / 2, s / 2, s * 0.42, 0, Math.PI * 2);
+    g.stroke();
+    g.lineWidth = 3;
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      g.beginPath();
+      g.moveTo(s / 2 + Math.cos(a) * s * 0.3, s / 2 + Math.sin(a) * s * 0.3);
+      g.lineTo(s / 2 + Math.cos(a) * s * 0.46, s / 2 + Math.sin(a) * s * 0.46);
+      g.stroke();
+    }
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
   /** a real-looking star ball: per-spectral-class surface texture */
   private buildStarMesh(type: string, fallbackColor: string): THREE.Mesh {
     const p = this.starParams(type);
@@ -4931,6 +4958,11 @@ export class GlobeEngine {
    *  creates the backdrop.
    * ============================================================ */
 
+  /** which galaxy's interior is currently open (for the UI object list) */
+  getGalaxyInteriorCurrent(): string | null {
+    return this.mode === "galaxyInterior" ? this.galaxyInteriorCurrent : null;
+  }
+
   /** enter a galaxy's interior — real stars + planets + procedural backdrop */
   enterGalaxyInterior(galaxyId: string) {
     const cfg = GALAXY_INTERIOR_CONFIGS[galaxyId];
@@ -5174,23 +5206,36 @@ export class GlobeEngine {
     g.add(coreGlow);
 
     /* ---- clickable real stars (mirrors starMarkers pattern) ---- */
+    /* star spheres are authored at solar-system scale (r 0.3-1.1) —
+       rescale so they stay visible against a disc 4-32 units wide */
+    const starScale = Math.max(cfg.discRadius * 0.055, 1.6);
     const stars = GALAXY_INTERIOR_STARS_BY_GALAXY[galaxyId] ?? [];
     for (const s of stars) {
       const pos = new THREE.Vector3(s.pos[0], s.pos[1], s.pos[2]);
       const mesh = this.buildStarMesh(s.type, s.color);
+      mesh.scale.setScalar(starScale);
       mesh.position.copy(pos);
       g.add(mesh);
       const glow = new THREE.Sprite(
         new THREE.SpriteMaterial({ map: this.dotTex, color: s.color, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.75 })
       );
-      glow.scale.setScalar(1.5);
+      glow.scale.setScalar(starScale * 4.5);
       glow.position.copy(pos);
       g.add(glow);
+      /* pulsing targeting reticle — marks the star as clickable */
+      const reticle = new THREE.Sprite(
+        new THREE.SpriteMaterial({ map: this.makeRingTexture(), color: 0x7de0ff, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.55 })
+      );
+      reticle.scale.setScalar(starScale * 7);
+      reticle.userData.baseScale = starScale * 7;
+      reticle.position.copy(pos);
+      g.add(reticle);
       this.galaxyInteriorStarMarkers.push({
         id: s.id,
         name: s.name,
         color: s.color,
         glow,
+        reticle,
         world: pos.clone(),
         mesh,
         properCycle: Math.random() * Math.PI * 2,
@@ -5211,30 +5256,33 @@ export class GlobeEngine {
     const planets = GALAXY_INTERIOR_PLANETS_BY_GALAXY[galaxyId] ?? [];
     for (const p of planets) {
       const parentStar = this.galaxyInteriorStarMarkers.find((s) => s.id === p.parentStarId);
+      /* orbits + sizes scale with the galaxy so planets sit outside the star ball */
+      const orbitDist = p.orbit * starScale * 2.4;
+      const planetR = Math.max(p.radius * starScale * 2.6, 0.28);
       const pivot = new THREE.Group();
       if (parentStar) pivot.position.copy(parentStar.world);
       const tex = this.makeExoTexture(p.radius > 0.06 ? "gas" : "desert");
       const mesh = new THREE.Mesh(
-        new THREE.SphereGeometry(p.radius * 3, 32, 24),
+        new THREE.SphereGeometry(planetR, 32, 24),
         new THREE.MeshPhongMaterial({ map: tex, emissive: 0x101018, emissiveIntensity: 0.3, specular: 0x334455, shininess: 12 })
       );
-      mesh.position.set(Math.cos(p.phase) * p.orbit, 0, Math.sin(p.phase) * p.orbit);
+      mesh.position.set(Math.cos(p.phase) * orbitDist, 0, Math.sin(p.phase) * orbitDist);
       pivot.add(mesh);
       const glow = new THREE.Sprite(
         new THREE.SpriteMaterial({ map: this.dotTex, color: p.color, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.4 })
       );
-      glow.scale.setScalar(p.radius * 5);
+      glow.scale.setScalar(planetR * 3.2);
       mesh.add(glow);
       /* orbit ring — like the Solar System */
       const orbitPts: THREE.Vector3[] = [];
       for (let i = 0; i <= 128; i++) {
         const a = (i / 128) * Math.PI * 2;
-        orbitPts.push(new THREE.Vector3(Math.cos(a) * p.orbit, 0, Math.sin(a) * p.orbit));
+        orbitPts.push(new THREE.Vector3(Math.cos(a) * orbitDist, 0, Math.sin(a) * orbitDist));
       }
       const orbitGeo = new THREE.BufferGeometry().setFromPoints(orbitPts);
       const orbitLine = new THREE.Line(
         orbitGeo,
-        new THREE.LineBasicMaterial({ color: new THREE.Color(p.color), transparent: true, opacity: 0.15 })
+        new THREE.LineBasicMaterial({ color: new THREE.Color(p.color), transparent: true, opacity: 0.35 })
       );
       pivot.add(orbitLine);
       g.add(pivot);
@@ -5243,6 +5291,7 @@ export class GlobeEngine {
         pivot,
         mesh,
         glow,
+        orbitDist,
         angle: p.phase,
         world: new THREE.Vector3(),
         parentStarId: p.parentStarId,
@@ -7142,24 +7191,30 @@ export class GlobeEngine {
         if (m.proper) {
           const cycle = 1 + 0.4 * Math.sin(this.time * 0.1 + m.properCycle);
           m.mesh.position.addScaledVector(m.proper, cycle * dt);
-          m.glow.position.addScaledVector(m.proper, cycle * dt);
         }
+        m.glow.position.copy(m.mesh.position);
+        m.reticle.position.copy(m.mesh.position);
         m.mesh.updateWorldMatrix(true, false);
         m.mesh.getWorldPosition(m.world);
         m.mesh.rotation.y += dt * 0.12;
         const gm = m.glow.material as THREE.SpriteMaterial;
         gm.opacity = 0.7 + Math.sin(this.time * 2.4 + m.world.x) * 0.25;
+        /* reticle pulse — draws the eye to clickable stars */
+        const pulse = 1 + Math.sin(this.time * 3 + m.properCycle) * 0.14;
+        m.reticle.scale.setScalar(m.reticle.userData.baseScale * pulse);
+        const rm = m.reticle.material as THREE.SpriteMaterial;
+        rm.opacity = this.galaxyInteriorFocusId === m.id ? 0.95 : 0.45 + Math.sin(this.time * 3 + m.properCycle) * 0.15;
       }
       /* exoplanets orbit their host stars — always visible */
       for (const ex of this.galaxyInteriorExoPlanets) {
         ex.pivot.visible = true;
         ex.angle += ex.def.speed * dt;
         const star = this.galaxyInteriorStarMarkers.find((s) => s.id === ex.parentStarId);
-        if (star) ex.pivot.position.copy(star.world);
+        if (star) ex.pivot.position.copy(star.mesh.position);
         ex.mesh.position.set(
-          Math.cos(ex.angle) * ex.def.orbit,
+          Math.cos(ex.angle) * ex.orbitDist,
           0,
-          Math.sin(ex.angle) * ex.def.orbit
+          Math.sin(ex.angle) * ex.orbitDist
         );
         ex.mesh.rotation.y += dt * 0.1;
         ex.mesh.updateWorldMatrix(true, false);

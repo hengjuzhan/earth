@@ -6,6 +6,7 @@ import Console from "./components/Console";
 import SettingsPanel, { type AppSettings } from "./components/SettingsPanel";
 import ModuleBar from "./components/ModuleBar";
 import IntelPanel from "./components/IntelPanel";
+import InteriorObjectList from "./components/InteriorObjectList";
 
 import { setVolumes } from "./audio/tacticalAudio";
 import { GlobeEngine, type BodyMode, type HoverInfo, type NodeSpec } from "./engine/globeEngine";
@@ -67,6 +68,7 @@ export default function App() {
   const [exoPlanet, setExoPlanet] = useState<Planet | null>(null);
   const [galaxyInteriorStar, setGalaxyInteriorStar] = useState<GalaxyInteriorStar | null>(null);
   const [galaxyInteriorPlanet, setGalaxyInteriorPlanet] = useState<GalaxyInteriorPlanet | null>(null);
+  const [interiorGalaxyId, setInteriorGalaxyId] = useState<string | null>(null);
 
   const [flash, setFlash] = useState(false);
   const [hover, setHover] = useState<HoverInfo | null>(null);
@@ -268,12 +270,25 @@ export default function App() {
       setLocalGalaxy(null);
       setGalaxyInteriorStar(null);
       setGalaxyInteriorPlanet(null);
+      /* engine may need a beat to build the interior — poll briefly for the id */
+      setInteriorGalaxyId(null);
+      let tries = 0;
+      const poll = window.setInterval(() => {
+        const gid = engineRef.current?.getGalaxyInteriorCurrent?.() ?? null;
+        if (gid) {
+          setInteriorGalaxyId(gid);
+          window.clearInterval(poll);
+        } else if (++tries > 20) {
+          window.clearInterval(poll);
+        }
+      }, 100);
       return;
     }
     /* if currently in galaxyInterior, the engine exits it and chains to the new mode */
     if (bodyMode === "galaxyInterior") {
       setGalaxyInteriorStar(null);
       setGalaxyInteriorPlanet(null);
+      setInteriorGalaxyId(null);
     }
     /* LOCAL GROUP — one zoom level past the galaxy */
     if (mode === "localGroup") {
@@ -881,6 +896,18 @@ export default function App() {
         bodyMode={bodyMode}
         onModule={handleModule}
       />
+
+      {/* galaxy interior — clickable catalog of real stars & planets */}
+      {bodyMode === "galaxyInterior" && interiorGalaxyId && (
+        <InteriorObjectList
+          lang={lang}
+          galaxyId={interiorGalaxyId}
+          activeStarId={galaxyInteriorStar?.id ?? null}
+          activePlanetId={galaxyInteriorPlanet?.id ?? null}
+          onStarClick={handleGalaxyInteriorStarClick}
+          onPlanetClick={handleGalaxyInteriorPlanetClick}
+        />
+      )}
 
       {/* top bar */}
       <Header

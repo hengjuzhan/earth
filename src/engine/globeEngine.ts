@@ -438,14 +438,14 @@ const PLANET_DEFS: PlanetDef[] = [
   { id: "luna", name: "LUNA", color: "#CFD6E8", radius: 0.13, dist: 0, speed: 0, selfSpin: 0.05, tilt: 0.3, tex: { seed: 13, base: [150, 152, 168] }, useMoonTex: true, isMoon: true, moonR: 1.05, moonSpeed: 0.5 },
 
   /* ---- REAL SATELLITES — Galilean moons (Jupiter), Titan (Saturn), Martian moons, Triton (Neptune) ---- */
-  { id: "io", name: "IO", color: "#F8E8A0", radius: 0.16, dist: 0, speed: 0, selfSpin: 0.3, tilt: 0.05, tex: { seed: 61, base: [226, 198, 120], craters: 48, size: 256 }, isMoon: true, moonOf: "jupiter", moonR: 2.35, moonSpeed: 1.6 },
-  { id: "europa", name: "EUROPA", color: "#E8D8C8", radius: 0.14, dist: 0, speed: 0, selfSpin: 0.28, tilt: 0.1, tex: { seed: 63, base: [210, 190, 170], craters: 12, size: 256 }, isMoon: true, moonOf: "jupiter", moonR: 3.05, moonSpeed: 1.15 },
-  { id: "ganymede", name: "GANYMEDE", color: "#B8B8C0", radius: 0.21, dist: 0, speed: 0, selfSpin: 0.22, tilt: 0.08, tex: { seed: 65, base: [160, 160, 172], craters: 36, size: 256 }, isMoon: true, moonOf: "jupiter", moonR: 3.95, moonSpeed: 0.82 },
-  { id: "callisto", name: "CALLISTO", color: "#B8B4A0", radius: 0.19, dist: 0, speed: 0, selfSpin: 0.18, tilt: 0.15, tex: { seed: 67, base: [150, 148, 132], craters: 44, size: 256 }, isMoon: true, moonOf: "jupiter", moonR: 5.05, moonSpeed: 0.55 },
-  { id: "titan", name: "TITAN", color: "#E8B060", radius: 0.22, dist: 0, speed: 0, selfSpin: 0.2, tilt: 0.1, tex: { seed: 69, base: [216, 160, 88], bands: { count: 4, palette: [[226, 176, 100], [190, 140, 78], [236, 196, 120]], strength: 0.4 }, swirl: 0.8, size: 256 }, isMoon: true, moonOf: "saturn", moonR: 2.4, moonSpeed: 0.62 },
-  { id: "phobos", name: "PHOBOS", color: "#B0A090", radius: 0.055, dist: 0, speed: 0, selfSpin: 0.5, tilt: 0.3, tex: { seed: 71, base: [130, 118, 102], craters: 8, size: 128 }, isMoon: true, moonOf: "mars", moonR: 0.62, moonSpeed: 1.9 },
-  { id: "deimos", name: "DEIMOS", color: "#B8B0A8", radius: 0.05, dist: 0, speed: 0, selfSpin: 0.5, tilt: 0.4, tex: { seed: 73, base: [138, 130, 118], craters: 6, size: 128 }, isMoon: true, moonOf: "mars", moonR: 0.78, moonSpeed: 1.2 },
-  { id: "triton", name: "TRITON", color: "#D0D0E0", radius: 0.16, dist: 0, speed: 0, selfSpin: 0.2, tilt: 0.4, tex: { seed: 75, base: [176, 176, 204], craters: 26, size: 256 }, isMoon: true, moonOf: "neptune", moonR: 1.6, moonSpeed: 0.5 },
+  { id: "io", name: "IO", color: "#F8E8A0", radius: 0.2, dist: 0, speed: 0, selfSpin: 0.3, tilt: 0.05, tex: { seed: 61, base: [226, 198, 120], craters: 48, size: 256 }, isMoon: true, moonOf: "jupiter", moonR: 2.35, moonSpeed: 1.6 },
+  { id: "europa", name: "EUROPA", color: "#E8D8C8", radius: 0.18, dist: 0, speed: 0, selfSpin: 0.28, tilt: 0.1, tex: { seed: 63, base: [210, 190, 170], craters: 12, size: 256 }, isMoon: true, moonOf: "jupiter", moonR: 3.05, moonSpeed: 1.15 },
+  { id: "ganymede", name: "GANYMEDE", color: "#B8B8C0", radius: 0.26, dist: 0, speed: 0, selfSpin: 0.22, tilt: 0.08, tex: { seed: 65, base: [160, 160, 172], craters: 36, size: 256 }, isMoon: true, moonOf: "jupiter", moonR: 3.95, moonSpeed: 0.82 },
+  { id: "callisto", name: "CALLISTO", color: "#B8B4A0", radius: 0.24, dist: 0, speed: 0, selfSpin: 0.18, tilt: 0.15, tex: { seed: 67, base: [150, 148, 132], craters: 44, size: 256 }, isMoon: true, moonOf: "jupiter", moonR: 5.05, moonSpeed: 0.55 },
+  { id: "titan", name: "TITAN", color: "#E8B060", radius: 0.28, dist: 0, speed: 0, selfSpin: 0.2, tilt: 0.1, tex: { seed: 69, base: [216, 160, 88], bands: { count: 4, palette: [[226, 176, 100], [190, 140, 78], [236, 196, 120]], strength: 0.4 }, swirl: 0.8, size: 256 }, isMoon: true, moonOf: "saturn", moonR: 2.4, moonSpeed: 0.62 },
+  { id: "phobos", name: "PHOBOS", color: "#B0A090", radius: 0.09, dist: 0, speed: 0, selfSpin: 0.5, tilt: 0.3, tex: { seed: 71, base: [130, 118, 102], craters: 8, size: 128 }, isMoon: true, moonOf: "mars", moonR: 0.62, moonSpeed: 1.9 },
+  { id: "deimos", name: "DEIMOS", color: "#B8B0A8", radius: 0.08, dist: 0, speed: 0, selfSpin: 0.5, tilt: 0.4, tex: { seed: 73, base: [138, 130, 118], craters: 6, size: 128 }, isMoon: true, moonOf: "mars", moonR: 0.78, moonSpeed: 1.2 },
+  { id: "triton", name: "TRITON", color: "#D0D0E0", radius: 0.21, dist: 0, speed: 0, selfSpin: 0.2, tilt: 0.4, tex: { seed: 75, base: [176, 176, 204], craters: 26, size: 256 }, isMoon: true, moonOf: "neptune", moonR: 1.6, moonSpeed: 0.5 },
 
   /* ---- DWARF PLANET — Pluto sitting in the Kuiper belt ---- */
   { id: "pluto", name: "PLUTO", color: "#E8B088", radius: 0.2, dist: 37.5, speed: 0.02, selfSpin: 0.08, tilt: 0.7, tex: { seed: 77, base: [206, 158, 118], craters: 26, size: 256 }, atmo: 0xc8a080 },
@@ -733,6 +733,35 @@ function makeTextSprite(text: string, color: string): THREE.Sprite {
   return sprite;
 }
 
+/* nebula cloud texture — layered soft blobs of ionised gas */
+function makeNebulaTexture(rgb: [number, number, number], seed: number): THREE.CanvasTexture {
+  const s = 256;
+  const c = document.createElement("canvas");
+  c.width = s;
+  c.height = s;
+  const g = c.getContext("2d")!;
+  let sd = seed;
+  const rnd = () => {
+    sd = (sd * 16807) % 2147483647;
+    return sd / 2147483647;
+  };
+  const blob = (x: number, y: number, r: number, a: number) => {
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`);
+    gr.addColorStop(0.55, `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a * 0.3})`);
+    gr.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gr;
+    g.fillRect(0, 0, s, s);
+  };
+  blob(s / 2, s / 2, s * 0.48, 0.5);
+  for (let i = 0; i < 14; i++) {
+    blob(s * 0.28 + rnd() * s * 0.44, s * 0.28 + rnd() * s * 0.44, s * 0.09 + rnd() * s * 0.2, 0.14 + rnd() * 0.22);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 /* ---------------- shaders ---------------- */
 
 const ATMOSPHERE_VERT = /* glsl */ `
@@ -931,6 +960,9 @@ export class GlobeEngine {
   private belt!: THREE.Points;
   private kuiperBelt!: THREE.Points;
   private outerSystemRing!: THREE.Line;
+  /* Milky Way band — the sky river seen from inside the galaxy */
+  private milkyWay!: THREE.Points;
+  private milkyWayHaze = new THREE.Group();
   private tmpV = new THREE.Vector3();
   private tmpV2 = new THREE.Vector3();
   /* pointer-anchored zoom — the scene point under the cursor stays put */
@@ -1322,9 +1354,10 @@ export class GlobeEngine {
     );
     this.scene.add(this.dust);
 
-    /* far starfield */
-    const starCount = 900;
+    /* far starfield — dense sky with a realistic colour mix */
+    const starCount = 2400;
     const starPos = new Float32Array(starCount * 3);
+    const starCol = new Float32Array(starCount * 3);
     for (let i = 0; i < starCount; i++) {
       const r = 46 + Math.random() * 44;
       const t = Math.random() * Math.PI * 2;
@@ -1332,15 +1365,29 @@ export class GlobeEngine {
       starPos[i * 3] = r * Math.sin(p) * Math.cos(t);
       starPos[i * 3 + 1] = r * Math.cos(p);
       starPos[i * 3 + 2] = r * Math.sin(p) * Math.sin(t);
+      /* realistic stellar colours: blue-white / white / yellow / orange */
+      const roll = Math.random();
+      const cc =
+        roll < 0.15
+          ? new THREE.Color(0x9fc8ff)
+          : roll < 0.6
+            ? new THREE.Color(0xffffff)
+            : roll < 0.85
+              ? new THREE.Color(0xfff4d0)
+              : new THREE.Color(0xffb98a);
+      starCol[i * 3] = cc.r;
+      starCol[i * 3 + 1] = cc.g;
+      starCol[i * 3 + 2] = cc.b;
     }
     const starGeo = new THREE.BufferGeometry();
     starGeo.setAttribute("position", new THREE.BufferAttribute(starPos, 3));
+    starGeo.setAttribute("color", new THREE.BufferAttribute(starCol, 3));
     this.stars = new THREE.Points(
       starGeo,
       new THREE.PointsMaterial({
         size: 0.12,
         map: this.dotTex,
-        color: 0xaee8ff,
+        vertexColors: true,
         transparent: true,
         opacity: 0.75,
         blending: THREE.AdditiveBlending,
@@ -1348,6 +1395,64 @@ export class GlobeEngine {
       })
     );
     this.scene.add(this.stars);
+
+    /* Milky Way band — we sit INSIDE the galactic disc, so the sky carries a
+       river of dense starlight along a tilted great circle, plus soft haze */
+    const bandN = new THREE.Vector3(0.52, 1, 0.34).normalize();
+    const bandU = new THREE.Vector3().crossVectors(bandN, new THREE.Vector3(0, 0, 1)).normalize();
+    const bandV = new THREE.Vector3().crossVectors(bandN, bandU).normalize();
+    const bandCount = 5200;
+    const bandPos = new Float32Array(bandCount * 3);
+    for (let i = 0; i < bandCount; i++) {
+      const t = Math.random() * Math.PI * 2;
+      const r = 50 + Math.random() * 38;
+      const spread = (Math.random() + Math.random() + Math.random() + Math.random() - 2) * 2.4;
+      const px = bandU.x * Math.cos(t) * r + bandV.x * Math.sin(t) * r + bandN.x * spread;
+      const py = bandU.y * Math.cos(t) * r + bandV.y * Math.sin(t) * r + bandN.y * spread;
+      const pz = bandU.z * Math.cos(t) * r + bandV.z * Math.sin(t) * r + bandN.z * spread;
+      bandPos[i * 3] = px;
+      bandPos[i * 3 + 1] = py;
+      bandPos[i * 3 + 2] = pz;
+    }
+    const bandGeo = new THREE.BufferGeometry();
+    bandGeo.setAttribute("position", new THREE.BufferAttribute(bandPos, 3));
+    this.milkyWay = new THREE.Points(
+      bandGeo,
+      new THREE.PointsMaterial({
+        size: 0.1,
+        map: this.dotTex,
+        color: 0xd8e8ff,
+        transparent: true,
+        opacity: 0.85,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    this.scene.add(this.milkyWay);
+    /* soft glow blobs strung along the band — unresolved star clouds */
+    for (let i = 0; i < 30; i++) {
+      const t = (i / 30) * Math.PI * 2 + Math.random() * 0.2;
+      const r = 54 + Math.random() * 30;
+      const spread = (Math.random() - 0.5) * 3;
+      const haze = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: this.dotTex,
+          color: 0x9fc0e8,
+          blending: THREE.AdditiveBlending,
+          transparent: true,
+          depthWrite: false,
+          opacity: 0.08 + Math.random() * 0.08,
+        })
+      );
+      haze.scale.setScalar(10 + Math.random() * 16);
+      haze.position.set(
+        bandU.x * Math.cos(t) * r + bandV.x * Math.sin(t) * r + bandN.x * spread,
+        bandU.y * Math.cos(t) * r + bandV.y * Math.sin(t) * r + bandN.y * spread,
+        bandU.z * Math.cos(t) * r + bandV.z * Math.sin(t) * r + bandN.z * spread
+      );
+      this.milkyWayHaze.add(haze);
+    }
+    this.scene.add(this.milkyWayHaze);
 
     /* decor rings */
     const ringMatA = new THREE.MeshBasicMaterial({
@@ -2076,7 +2181,7 @@ export class GlobeEngine {
           }
           const mg = new THREE.BufferGeometry().setFromPoints(moonPts);
           parent.group.add(
-            new THREE.Line(mg, new THREE.LineBasicMaterial({ color: new THREE.Color(entry.color), transparent: true, opacity: 0.2 }))
+            new THREE.Line(mg, new THREE.LineBasicMaterial({ color: new THREE.Color(entry.color), transparent: true, opacity: 0.32 }))
           );
         }
       } else {
@@ -2135,7 +2240,7 @@ export class GlobeEngine {
     this.systemGroup.add(this.outerSystemRing);
 
     /* Kuiper belt — faint icy trans-Neptunian debris beyond the perimeter */
-    const kuiperCount = 900;
+    const kuiperCount = 1600;
     const kuiperPos = new Float32Array(kuiperCount * 3);
     for (let i = 0; i < kuiperCount; i++) {
       const a = Math.random() * Math.PI * 2;
@@ -2153,7 +2258,7 @@ export class GlobeEngine {
         map: this.dotTex,
         color: 0x8aa0c8,
         transparent: true,
-        opacity: 0.32,
+        opacity: 0.5,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       })
@@ -3940,7 +4045,7 @@ export class GlobeEngine {
       const y = (Math.random() + Math.random() - 1) * (0.6 + r * 0.05);
       return { x, y, z };
     };
-    makeStars(6500, starColor, discGen, 0.16, 0.95);
+    makeStars(16000, starColor, discGen, 0.16, 0.95);
 
     /* ---- central bulge: dense golden core ---- */
     const bulgeGen = () => {
@@ -3956,7 +4061,7 @@ export class GlobeEngine {
       } while (r > 3.2);
       return { x, y, z };
     };
-    makeStars(1600, () => new THREE.Color(0xffe2a8), bulgeGen, 0.22, 0.9);
+    makeStars(4200, () => new THREE.Color(0xffe2a8), bulgeGen, 0.22, 0.9);
 
     /* ---- halo: sparse old blue-white stars ---- */
     const haloGen = () => {
@@ -3969,7 +4074,7 @@ export class GlobeEngine {
         z: rr * Math.sin(ph) * Math.sin(th),
       };
     };
-    makeStars(700, () => new THREE.Color(0xcfdfff), haloGen, 0.12, 0.5);
+    makeStars(2600, () => new THREE.Color(0xcfdfff), haloGen, 0.12, 0.5);
 
     /* ---- dust lanes: dark red-brown particles inside the arms ---- */
     const dustGen = () => {
@@ -3985,7 +4090,94 @@ export class GlobeEngine {
         z: Math.sin(theta) * r + Math.sin(theta + Math.PI / 2) * jitter,
       };
     };
-    makeStars(900, () => new THREE.Color(0x5a3018), dustGen, 0.2, 0.22);
+    makeStars(1800, () => new THREE.Color(0x5a3018), dustGen, 0.2, 0.22);
+
+    /* ---- real emission nebulae along the spiral arms ----
+       HII star-forming clouds (Orion, Carina, Eagle, Trifid, Lagoon…) each
+       rendered as a coloured gas sprite wrapped in a clump of hot young stars */
+    const gauss = () => Math.random() + Math.random() + Math.random() - 1.5;
+    const nebulae: { name: string; rgb: [number, number, number]; r: number; arm: number; scale: number; seed: number }[] = [
+      { name: "Orion", rgb: [255, 92, 148], r: 9, arm: 0, scale: 4.6, seed: 101 },
+      { name: "Rosette", rgb: [255, 128, 168], r: 13, arm: 0, scale: 3.8, seed: 103 },
+      { name: "Carina", rgb: [255, 128, 64], r: 15, arm: 1, scale: 5.4, seed: 107 },
+      { name: "Crab", rgb: [140, 168, 255], r: 11, arm: 1, scale: 3.2, seed: 109 },
+      { name: "Eagle", rgb: [110, 224, 160], r: 19, arm: 2, scale: 4.4, seed: 113 },
+      { name: "Omega", rgb: [255, 158, 96], r: 21, arm: 2, scale: 4.0, seed: 127 },
+      { name: "Trifid", rgb: [198, 108, 208], r: 24, arm: 3, scale: 3.6, seed: 131 },
+      { name: "Lagoon", rgb: [255, 96, 116], r: 27, arm: 3, scale: 4.2, seed: 137 },
+    ];
+    for (const nb of nebulae) {
+      const theta = (nb.arm / armCount) * Math.PI * 2 + Math.log(nb.r / 2.5) / Math.tan(pitch);
+      const cx = Math.cos(theta) * nb.r;
+      const cz = Math.sin(theta) * nb.r;
+      const cy = (nb.arm % 2 === 0 ? 0.5 : -0.6);
+      const cloud = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: makeNebulaTexture(nb.rgb, nb.seed),
+          blending: THREE.AdditiveBlending,
+          transparent: true,
+          depthWrite: false,
+          opacity: 0.62,
+        })
+      );
+      cloud.scale.setScalar(nb.scale);
+      cloud.position.set(cx, cy, cz);
+      g.add(cloud);
+      /* young hot stars freshly born inside the cloud */
+      makeStars(
+        170,
+        () => (Math.random() < 0.6 ? new THREE.Color(0x9fc8ff) : new THREE.Color(0xffffff)),
+        () => ({ x: cx + gauss() * nb.scale * 0.28, y: cy + gauss() * nb.scale * 0.1, z: cz + gauss() * nb.scale * 0.28 }),
+        0.15,
+        0.9
+      );
+    }
+
+    /* ---- globular clusters — dense ancient swarms in the halo ---- */
+    const globulars: { name: string; r: number; th: number; ph: number; warm: number }[] = [
+      { name: "Omega Centauri", r: 21, th: 0.8, ph: 0.9, warm: 0xffe0b0 },
+      { name: "M13 Hercules", r: 26, th: 2.4, ph: 1.4, warm: 0xffe8c0 },
+      { name: "M4", r: 17, th: 4.1, ph: 1.1, warm: 0xffd8a0 },
+      { name: "M22", r: 23, th: 5.4, ph: 0.7, warm: 0xffe4b4 },
+      { name: "M5", r: 29, th: 1.7, ph: 1.7, warm: 0xffe0c0 },
+    ];
+    for (const gc of globulars) {
+      const cx = gc.r * Math.sin(gc.ph) * Math.cos(gc.th);
+      const cy = gc.r * Math.cos(gc.ph) * 0.7;
+      const cz = gc.r * Math.sin(gc.ph) * Math.sin(gc.th);
+      const core = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: this.dotTex,
+          color: gc.warm,
+          blending: THREE.AdditiveBlending,
+          transparent: true,
+          depthWrite: false,
+          opacity: 0.55,
+        })
+      );
+      core.scale.setScalar(3);
+      core.position.set(cx, cy, cz);
+      g.add(core);
+      /* hundreds of old suns packed into a sphere */
+      makeStars(
+        460,
+        () => new THREE.Color(gc.warm),
+        () => {
+          const u = Math.random();
+          const v = Math.random();
+          const rr = 0.4 + Math.pow(u, 0.4) * 1.7;
+          const a = 2 * Math.PI * v;
+          const sp = Math.acos(2 * Math.random() - 1);
+          return {
+            x: cx + rr * Math.sin(sp) * Math.cos(a),
+            y: cy + rr * Math.cos(sp) * 0.8,
+            z: cz + rr * Math.sin(sp) * Math.sin(a),
+          };
+        },
+        0.11,
+        0.85
+      );
+    }
 
     /* ---- galactic core glow ---- */
     const coreGlow = new THREE.Sprite(
@@ -4033,7 +4225,7 @@ export class GlobeEngine {
           opacity: 0.75,
         })
       );
-      glow.scale.setScalar(1.5);
+      glow.scale.setScalar(2.2);
       glow.position.copy(pos);
       g.add(glow);
 
@@ -4556,6 +4748,8 @@ export class GlobeEngine {
     /* hide the galaxy, show interior */
     this.galaxyGroup.visible = false;
     this.stars.visible = false;
+    this.milkyWay.visible = false;
+    this.milkyWayHaze.visible = false;
 
     /* build interior on-demand */
     this.buildGalaxyInterior(galaxyId);
@@ -5262,6 +5456,9 @@ export class GlobeEngine {
     this.clouds.visible = false;
     if (this.nearUfo) this.nearUfo.group.visible = false;
     this.stars.visible = false;
+    /* outside the galaxy the sky-river band no longer applies */
+    this.milkyWay.visible = false;
+    this.milkyWayHaze.visible = false;
     /* the whole solar system shrinks into its place in the Orion arm */
     this.solarRoot.position.set(26, 1.2, 0);
     this.solarRoot.scale.setScalar(0.05);
@@ -5285,6 +5482,8 @@ export class GlobeEngine {
     this.solarRoot.scale.setScalar(1);
     this.solarRoot.position.set(0, 0, 0);
     this.stars.visible = true;
+    this.milkyWay.visible = true;
+    this.milkyWayHaze.visible = true;
     this.dust.visible = true;
     this.decorGroup.visible = true;
     this.orbitalRoot.visible = true;

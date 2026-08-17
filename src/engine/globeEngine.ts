@@ -1069,6 +1069,21 @@ export class GlobeEngine {
   private onGalaxyInteriorStarClick?: (id: string) => void;
   private onGalaxyInteriorPlanetClick?: (id: string) => void;
 
+  /* star-system sub-level — the solar-system-like view of ONE interior star */
+  private interiorSystemGroup = new THREE.Group();
+  private interiorSystemStarId: string | null = null;
+  private interiorSystemPlanets: {
+    def: GalaxyInteriorPlanet;
+    mesh: THREE.Mesh;
+    glow: THREE.Sprite;
+    orbitDist: number;
+    angle: number;
+    world: THREE.Vector3;
+  }[] = [];
+  private interiorSystemLocal = { theta: 0.4, phi: 1.25, radius: 48 };
+  private interiorSystemFocusPlanetId: string | null = null;
+  private hoverInteriorSysPlanet: string | null = null;
+
   /* moon as its own body — camera flies to the real orbiting moon */
   private moonFocus = false;
   private moonLocal = { theta: 0.4, phi: 1.35, radius: 1.7 };
@@ -1186,6 +1201,8 @@ export class GlobeEngine {
     this.scene.add(this.galaxyGroup);
     this.galaxyInteriorGroup.visible = false;
     this.scene.add(this.galaxyInteriorGroup);
+    this.interiorSystemGroup.visible = false;
+    this.scene.add(this.interiorSystemGroup);
 
     /* body tilt — the whole solar system lives under solarRoot so it can
        shrink into a single point when we zoom out to the galaxy */
@@ -4968,6 +4985,12 @@ export class GlobeEngine {
     const cfg = GALAXY_INTERIOR_CONFIGS[galaxyId];
     if (!cfg) return;
     this.finishFlight();
+    /* drop any open star-system sub-level first */
+    this.interiorSystemStarId = null;
+    this.interiorSystemFocusPlanetId = null;
+    this.hoverInteriorSysPlanet = null;
+    this.interiorSystemGroup.visible = false;
+    this.interiorSystemPlanets = [];
     this.localGroupFocusId = null;
     this.galaxyInteriorFocusId = null;
     this.hoverGalaxyInterior = null;
@@ -5015,6 +5038,10 @@ export class GlobeEngine {
   }
 
   clearGalaxyInteriorFocus() {
+    if (this.interiorSystemStarId) {
+      this.exitInteriorStarSystem();
+      return;
+    }
     this.galaxyInteriorFocusId = null;
     const cfg = this.galaxyInteriorCurrent ? GALAXY_INTERIOR_CONFIGS[this.galaxyInteriorCurrent] : null;
     const r = cfg ? cfg.discRadius * 2.2 : 60;
@@ -5024,8 +5051,14 @@ export class GlobeEngine {
 
   /** focus a specific exoplanet inside a galaxy interior */
   focusGalaxyInteriorPlanet(id: string) {
+    if (this.mode !== "galaxyInterior") return;
+    /* inside the star-system sub-level the same planet lives at system scale */
+    if (this.interiorSystemStarId) {
+      this.focusInteriorSystemPlanet(id);
+      return;
+    }
     const ex = this.galaxyInteriorExoPlanets.find((x) => x.def.id === id);
-    if (!ex || this.mode !== "galaxyInterior") return;
+    if (!ex) return;
     this.galaxyInteriorFocusId = null;
     this.flight = null;
     ex.mesh.updateWorldMatrix(true, false);
@@ -5047,8 +5080,205 @@ export class GlobeEngine {
     this.idleUntil = this.time + 3;
   }
 
+  /** enter the star-system sub-level — a solar-system-like view of ONE star */
+  enterInteriorStarSystem(starId: string) {
+    if (this.mode !== "galaxyInterior" || !this.galaxyInteriorCurrent) return;
+    if (this.interiorSystemStarId === starId) return;
+    const starDef = (GALAXY_INTERIOR_STARS_BY_GALAXY[this.galaxyInteriorCurrent] ?? []).find(
+      (s) => s.id === starId
+    );
+    if (!starDef) return;
+    this.finishFlight();
+    this.interiorSystemStarId = starId;
+    this.interiorSystemFocusPlanetId = null;
+    this.hoverInteriorSysPlanet = null;
+    this.galaxyInteriorFocusId = null;
+
+    const g = this.interiorSystemGroup;
+    while (g.children.length > 0) {
+      const child = g.children[0];
+      this.disposeRecursive(child);
+      g.remove(child);
+    }
+    this.interiorSystemPlanets = [];
+
+    /* central star — same class-specific surface as the galaxy view, blown up */
+    const star = this.buildStarMesh(starDef.type, starDef.color);
+    const baseR = (star.geometry as THREE.SphereGeometry).parameters.radius;
+    star.scale.setScalar(2.6 / baseR);
+    g.add(star);
+    const starGlow = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: this.dotTex,
+        color: starDef.color,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0.85,
+        depthWrite: false,
+      })
+    );
+    starGlow.scale.setScalar(11);
+    g.add(starGlow);
+    const starLight = new THREE.PointLight(0xfff1d6, 3.4, 0, 0);
+    g.add(starLight);
+
+    /* its real planets — solar-system scale orbits */
+    const planets = (GALAXY_INTERIOR_PLANETS_BY_GALAXY[this.galaxyInteriorCurrent] ?? []).filter(
+      (p) => p.parentStarId === starId
+    );
+    let maxOrbit = 8;
+    planets.forEach((p, idx) => {
+      const orbitDist = 7.5 + idx * 7.5;
+      maxOrbit = Math.max(maxOrbit, orbitDist);
+      const planetR = 0.32 + p.radius * 2.4;
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(planetR, 32, 24),
+        new THREE.MeshPhongMaterial({
+          map: this.makeExoTexture(p.radius > 0.06 ? "gas" : "desert"),
+          emissive: 0x101018,
+          emissiveIntensity: 0.3,
+          specular: 0x334455,
+          shininess: 12,
+        })
+      );
+      mesh.position.set(Math.cos(p.phase) * orbitDist, 0, Math.sin(p.phase) * orbitDist);
+      g.add(mesh);
+      const glow = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: this.dotTex,
+          color: p.color,
+          blending: THREE.AdditiveBlending,
+          transparent: true,
+          opacity: 0.45,
+          depthWrite: false,
+        })
+      );
+      glow.scale.setScalar(planetR * 3.4);
+      mesh.add(glow);
+      /* orbit ring — solar-system style */
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i <= 160; i++) {
+        const a = (i / 160) * Math.PI * 2;
+        pts.push(new THREE.Vector3(Math.cos(a) * orbitDist, 0, Math.sin(a) * orbitDist));
+      }
+      const ring = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(pts),
+        new THREE.LineBasicMaterial({ color: new THREE.Color(p.color), transparent: true, opacity: 0.28 })
+      );
+      g.add(ring);
+      this.interiorSystemPlanets.push({
+        def: p,
+        mesh,
+        glow,
+        orbitDist,
+        angle: p.phase,
+        world: new THREE.Vector3(),
+      });
+    });
+
+    /* outer perimeter dashed ring — the solar-system signature */
+    const orPts: THREE.Vector3[] = [];
+    for (let i = 0; i <= 200; i++) {
+      const a = (i / 200) * Math.PI * 2;
+      orPts.push(new THREE.Vector3(Math.cos(a) * (maxOrbit + 6), 0, Math.sin(a) * (maxOrbit + 6)));
+    }
+    const orRing = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(orPts),
+      new THREE.LineDashedMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.16, dashSize: 0.6, gapSize: 0.5 })
+    );
+    orRing.computeLineDistances();
+    g.add(orRing);
+
+    /* ambient background field */
+    const bgCount = 420;
+    const bgPos = new Float32Array(bgCount * 3);
+    for (let i = 0; i < bgCount; i++) {
+      const rr = 130 + Math.random() * 130;
+      const th = Math.random() * Math.PI * 2;
+      const ph = Math.acos(Math.random() * 2 - 1);
+      bgPos[i * 3] = rr * Math.sin(ph) * Math.cos(th);
+      bgPos[i * 3 + 1] = rr * Math.cos(ph);
+      bgPos[i * 3 + 2] = rr * Math.sin(ph) * Math.sin(th);
+    }
+    const bgGeo = new THREE.BufferGeometry();
+    bgGeo.setAttribute("position", new THREE.BufferAttribute(bgPos, 3));
+    const bg = new THREE.Points(
+      bgGeo,
+      new THREE.PointsMaterial({
+        size: 0.55,
+        map: this.dotTex,
+        color: 0xcfe0ff,
+        transparent: true,
+        opacity: 0.7,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    g.add(bg);
+
+    /* swap scenes + set camera */
+    this.galaxyInteriorGroup.visible = false;
+    this.interiorSystemGroup.visible = true;
+    this.interiorSystemGroup.scale.setScalar(0.6);
+    gsap.to(this.interiorSystemGroup.scale, { x: 1, y: 1, z: 1, duration: 0.8, ease: "power1.out" });
+    this.interiorSystemLocal = { theta: 0.4, phi: 1.25, radius: (maxOrbit + 6) * 2.1 };
+    this.lookAt.set(0, 0, 0);
+    this.idleUntil = this.time + 3;
+  }
+
+  /** leave the star-system sub-level, back to the galaxy panorama */
+  exitInteriorStarSystem() {
+    if (!this.interiorSystemStarId) return;
+    this.interiorSystemStarId = null;
+    this.interiorSystemFocusPlanetId = null;
+    this.hoverInteriorSysPlanet = null;
+    this.interiorSystemGroup.visible = false;
+    while (this.interiorSystemGroup.children.length > 0) {
+      const child = this.interiorSystemGroup.children[0];
+      this.disposeRecursive(child);
+      this.interiorSystemGroup.remove(child);
+    }
+    this.interiorSystemPlanets = [];
+    this.galaxyInteriorGroup.visible = true;
+    const cfg = this.galaxyInteriorCurrent ? GALAXY_INTERIOR_CONFIGS[this.galaxyInteriorCurrent] : null;
+    const r = cfg ? cfg.discRadius * 2.2 : 60;
+    this.galaxyInteriorLocal = { theta: 0.5, phi: 1.2, radius: r };
+    this.lookAt.set(0, 0, 0);
+    this.idleUntil = this.time + 3;
+  }
+
+  isInInteriorSystem(): boolean {
+    return this.mode === "galaxyInterior" && !!this.interiorSystemStarId;
+  }
+
+  /** focus one planet inside the star-system sub-level */
+  focusInteriorSystemPlanet(id: string) {
+    const p = this.interiorSystemPlanets.find((x) => x.def.id === id);
+    if (!p || !this.interiorSystemStarId) return;
+    this.interiorSystemFocusPlanetId = id;
+    this.flight = null;
+    p.mesh.updateWorldMatrix(true, false);
+    p.mesh.getWorldPosition(p.world);
+    const out = p.world.clone().normalize();
+    if (out.lengthSq() < 1e-6) out.set(0, 0, 1);
+    const planetR = (p.mesh.geometry as THREE.SphereGeometry).parameters.radius;
+    const dist = Math.max(planetR * 4.5, 1.6);
+    const to = p.world.clone().addScaledVector(out, dist);
+    this.startFlight(to, p.world.clone(), 1.2, () => {
+      const rel = this.camera.position.clone().sub(p.world);
+      const len = rel.length() || 1;
+      this.interiorSystemLocal = {
+        theta: Math.atan2(rel.x, rel.z),
+        phi: Math.acos(THREE.MathUtils.clamp(rel.y / len, -1, 1)),
+        radius: len,
+      };
+    });
+    this.idleUntil = this.time + 3;
+  }
+
   /** exit the galaxy interior back to the local group */
   exitGalaxyInterior() {
+    this.exitInteriorStarSystem();
     this.galaxyInteriorFocusId = null;
     this.hoverGalaxyInterior = null;
     this.galaxyInteriorGroup.visible = false;
@@ -6321,6 +6551,10 @@ export class GlobeEngine {
     if (wasClick) this.updateHover(e);
     if (this.annihilation) return;
     /* click (not drag) → galaxy interior stars · galaxy interior planets · local group · galaxy stars · UFO · node · celestial body */
+    if (wasClick && this.mode === "galaxyInterior" && this.interiorSystemStarId && this.hoverInteriorSysPlanet && this.onGalaxyInteriorPlanetClick) {
+      this.onGalaxyInteriorPlanetClick(this.hoverInteriorSysPlanet);
+      return;
+    }
     if (wasClick && this.mode === "galaxyInterior" && this.hoverGalaxyInteriorExo && this.onGalaxyInteriorPlanetClick) {
       this.onGalaxyInteriorPlanetClick(this.hoverGalaxyInteriorExo);
       return;
@@ -6410,6 +6644,9 @@ export class GlobeEngine {
 
   private getZoomRadius(): number {
     if (this.localGroupFocusId && this.mode === "localGroup") return this.localGroupLocal.radius;
+    if (this.mode === "galaxyInterior") {
+      return this.interiorSystemStarId ? this.interiorSystemLocal.radius : this.galaxyInteriorLocal.radius;
+    }
     if ((this.exoFocusId || this.galaxyFocusId || this.starFocusId) && this.mode === "galaxy") return this.galaxyLocal.radius;
     if (this.moonFocus && this.mode === "earth") return this.moonLocal.radius;
     if (this.mode === "system" && this.focusPlanetId) return this.local.radius;
@@ -6418,6 +6655,10 @@ export class GlobeEngine {
 
   private setZoomRadius(r: number) {
     if (this.localGroupFocusId && this.mode === "localGroup") this.localGroupLocal.radius = r;
+    else if (this.mode === "galaxyInterior") {
+      if (this.interiorSystemStarId) this.interiorSystemLocal.radius = r;
+      else this.galaxyInteriorLocal.radius = r;
+    }
     else if ((this.exoFocusId || this.galaxyFocusId || this.starFocusId) && this.mode === "galaxy") this.galaxyLocal.radius = r;
     else if (this.moonFocus && this.mode === "earth") this.moonLocal.radius = r;
     else if (this.mode === "system" && this.focusPlanetId) this.local.radius = r;
@@ -6425,6 +6666,20 @@ export class GlobeEngine {
   }
 
   private clampZoomRadius(r: number): number {
+    if (this.mode === "galaxyInterior") {
+      if (this.interiorSystemStarId) {
+        if (this.interiorSystemFocusPlanetId) {
+          const p = this.interiorSystemPlanets.find((x) => x.def.id === this.interiorSystemFocusPlanetId);
+          const minR = (p ? (p.mesh.geometry as THREE.SphereGeometry).parameters.radius : 0.5) * 1.8 + 0.4;
+          return THREE.MathUtils.clamp(r, minR, 110);
+        }
+        return THREE.MathUtils.clamp(r, 4, 110);
+      }
+      /* panorama — keep the camera outside the galaxy disc (thin particle plane) */
+      const cfg = this.galaxyInteriorCurrent ? GALAXY_INTERIOR_CONFIGS[this.galaxyInteriorCurrent] : null;
+      const disc = cfg ? cfg.discRadius : 30;
+      return THREE.MathUtils.clamp(r, disc * 0.9, disc * 5);
+    }
     if (this.localGroupFocusId && this.mode === "localGroup") {
       const lg = this.localGroupGalaxies.find((x) => x.def.id === this.localGroupFocusId);
       /* camera stays OUTSIDE the disc — zooming inside a thin particle plane
@@ -6506,6 +6761,10 @@ export class GlobeEngine {
   }
 
   private onDblClick = () => {
+    if (this.isInInteriorSystem()) {
+      this.exitInteriorStarSystem();
+      return;
+    }
     if (this.localGroupFocusId) this.clearLocalGalaxyFocus();
     else if (this.starFocusId) this.clearStarFocus();
     else if (this.exoFocusId) this.clearExoFocus();
@@ -6527,6 +6786,31 @@ export class GlobeEngine {
       const rect = this.container.getBoundingClientRect();
       const ndcX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       const ndcY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      /* star-system sub-level — hover the orbiting planets + the central star */
+      if (this.interiorSystemStarId) {
+        let bestSys: { id: string; name: string; color: string } | null = null;
+        let bestSysD = 0.05;
+        for (const p of this.interiorSystemPlanets) {
+          p.mesh.updateWorldMatrix(true, false);
+          p.mesh.getWorldPosition(this.tmpV);
+          this.tmpV.project(this.camera);
+          if (this.tmpV.z > 1) continue;
+          const d = Math.hypot(this.tmpV.x - ndcX, this.tmpV.y - ndcY);
+          if (d < bestSysD) {
+            bestSysD = d;
+            bestSys = { id: p.def.id, name: p.def.name, color: p.def.color };
+          }
+        }
+        this.hoverInteriorSysPlanet = bestSys ? bestSys.id : null;
+        if (bestSys) {
+          this.renderer.domElement.style.cursor = "pointer";
+          this.onHover({ id: bestSys.id, name: bestSys.name, color: bestSys.color, x: e.clientX, y: e.clientY });
+        } else {
+          this.renderer.domElement.style.cursor = "crosshair";
+          this.onHover(null);
+        }
+        return;
+      }
       /* check exoplanets first (smaller targets) */
       let bestExo: { id: string; name: string; color: string } | null = null;
       let bestExoD = 0.04;
@@ -7222,6 +7506,21 @@ export class GlobeEngine {
       }
     }
 
+    /* star-system sub-level — planets orbit the central star at system scale */
+    if (this.mode === "galaxyInterior" && this.interiorSystemStarId && this.interiorSystemGroup.visible) {
+      for (const p of this.interiorSystemPlanets) {
+        p.angle += p.def.speed * 0.45 * dt;
+        p.mesh.position.set(
+          Math.cos(p.angle) * p.orbitDist,
+          0,
+          Math.sin(p.angle) * p.orbitDist
+        );
+        p.mesh.rotation.y += dt * 0.15;
+        p.mesh.updateWorldMatrix(true, false);
+        p.mesh.getWorldPosition(p.world);
+      }
+    }
+
     /* camera — states: star focus · exoplanet focus · galaxy focus · local group · flight · satellite · moon · planet · free */
     if (this.starFocusId && this.mode === "galaxy" && !this.flight) {
       const m = this.starMarkers.find((x) => x.id === this.starFocusId);
@@ -7257,6 +7556,14 @@ export class GlobeEngine {
       } else {
         this.localGroupFocusId = null;
       }
+    } else if (this.mode === "galaxyInterior" && this.interiorSystemFocusPlanetId && !this.flight) {
+      /* camera rides the orbiting planet inside the star-system sub-level */
+      const p = this.interiorSystemPlanets.find((x) => x.def.id === this.interiorSystemFocusPlanetId);
+      if (p) {
+        this.followTarget(p.world, this.interiorSystemLocal, dt, 0.06);
+      } else {
+        this.interiorSystemFocusPlanetId = null;
+      }
     } else if (this.galaxyInteriorFocusId && this.mode === "galaxyInterior" && !this.flight) {
       const m = this.galaxyInteriorStarMarkers.find((x) => x.id === this.galaxyInteriorFocusId);
       if (m) {
@@ -7291,7 +7598,12 @@ export class GlobeEngine {
         this.focusPlanetId = null;
       }
     } else {
-      const local = this.mode === "galaxyInterior" ? this.galaxyInteriorLocal : this.sph;
+      const local =
+        this.mode === "galaxyInterior"
+          ? this.interiorSystemStarId
+            ? this.interiorSystemLocal
+            : this.galaxyInteriorLocal
+          : this.sph;
       const { theta, phi, radius } = local;
       this.camera.position.set(
         radius * Math.sin(phi) * Math.sin(theta),

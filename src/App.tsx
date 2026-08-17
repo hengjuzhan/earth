@@ -69,6 +69,7 @@ export default function App() {
   const [galaxyInteriorStar, setGalaxyInteriorStar] = useState<GalaxyInteriorStar | null>(null);
   const [galaxyInteriorPlanet, setGalaxyInteriorPlanet] = useState<GalaxyInteriorPlanet | null>(null);
   const [interiorGalaxyId, setInteriorGalaxyId] = useState<string | null>(null);
+  const [interiorSystemStar, setInteriorSystemStar] = useState<GalaxyInteriorStar | null>(null);
 
   const [flash, setFlash] = useState(false);
   const [hover, setHover] = useState<HoverInfo | null>(null);
@@ -270,6 +271,7 @@ export default function App() {
       setLocalGalaxy(null);
       setGalaxyInteriorStar(null);
       setGalaxyInteriorPlanet(null);
+      setInteriorSystemStar(null);
       /* engine may need a beat to build the interior — poll briefly for the id */
       setInteriorGalaxyId(null);
       let tries = 0;
@@ -289,6 +291,7 @@ export default function App() {
       setGalaxyInteriorStar(null);
       setGalaxyInteriorPlanet(null);
       setInteriorGalaxyId(null);
+      setInteriorSystemStar(null);
     }
     /* LOCAL GROUP — one zoom level past the galaxy */
     if (mode === "localGroup") {
@@ -434,10 +437,13 @@ export default function App() {
     setLocalGalaxy(null);
     setStar(null);
     setSelectedPlanetId(null);
-    engineRef.current?.focusGalaxyInteriorStar(id);
+    /* drill INTO the star's planetary system — solar-system-like sub-level */
+    engineRef.current?.enterInteriorStarSystem(id);
+    setInteriorSystemStar(star);
+    setGalaxyInteriorPlanet(null);
     pushLog(
-      L(`✦ 河外星体 · ${star.zh}`, `✦ EXTRAGALACTIC · ${star.name}`),
-      "info"
+      L(`✦ 进入 ${star.zh} 恒星系统 · 轨道展开`, `✦ ENTERING ${star.name} SYSTEM · ORBITS UNFOLD`),
+      "ok"
     );
   }, [L, pushLog]);
 
@@ -841,11 +847,24 @@ export default function App() {
       else if (e.key === "a" || e.key === "A") handleWeather("aurora");
       else if (e.key === "w" || e.key === "W") handleWeather("wind");
       else if (e.key === "m" || e.key === "M") handleWeather("shower");
-      else if (e.key === "Escape") handleExit();
+      else if (e.key === "Escape") {
+        /* layered back: star system → galaxy panorama → local group → earth */
+        const eng = engineRef.current;
+        if (eng?.isInInteriorSystem()) {
+          eng.exitInteriorStarSystem();
+          setInteriorSystemStar(null);
+          setGalaxyInteriorPlanet(null);
+          pushLog(L("◂ 返回星系全景", "◂ BACK TO GALAXY PANORAMA"), "info");
+        } else if (bodyMode === "galaxyInterior") {
+          handleBodyMode("localGroup");
+        } else {
+          handleExit();
+        }
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [consoleOpen, handleBodyMode, handleLaunch, cycleLight, cycleLab, handleWeather, handleExit]);
+  }, [consoleOpen, handleBodyMode, handleLaunch, cycleLight, cycleLab, handleWeather, handleExit, bodyMode, L, pushLog]);
 
   useEffect(() => {
     if (hover && tooltipRef.current) {
@@ -902,10 +921,17 @@ export default function App() {
         <InteriorObjectList
           lang={lang}
           galaxyId={interiorGalaxyId}
+          systemStar={interiorSystemStar}
           activeStarId={galaxyInteriorStar?.id ?? null}
           activePlanetId={galaxyInteriorPlanet?.id ?? null}
           onStarClick={handleGalaxyInteriorStarClick}
           onPlanetClick={handleGalaxyInteriorPlanetClick}
+          onBack={() => {
+            engineRef.current?.exitInteriorStarSystem();
+            setInteriorSystemStar(null);
+            setGalaxyInteriorPlanet(null);
+            setGalaxyInteriorStar(null);
+          }}
         />
       )}
 
@@ -959,6 +985,8 @@ export default function App() {
               if (lgz) return lang === "zh" ? lgz.zh : lgz.name;
               const gis = findGalaxyInteriorStar(hover.id);
               if (gis) return lang === "zh" ? gis.zh : gis.name;
+              const gip = findGalaxyInteriorPlanet(hover.id);
+              if (gip) return lang === "zh" ? gip.zh : gip.name;
               return hover.name;
             })()}
           </span>

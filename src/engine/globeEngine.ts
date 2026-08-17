@@ -1015,6 +1015,16 @@ export class GlobeEngine {
   private localGroupLocal = { theta: 0.5, phi: 1.2, radius: 360 };
   private localGroupBg: THREE.Points | null = null;
   private localGroupGlobe: THREE.Sprite | null = null;
+  /* dense twinkling foreground stars — the Local Group is NOT an empty void */
+  private localGroupStars: { pts: THREE.Points; phases: Float32Array } | null = null;
+  /* soft multi-coloured interstellar nebulae drifting through the cluster */
+  private localGroupNebula: { sprite: THREE.Sprite; drift: number }[] = [];
+  /* big-scale comets that only make sense at Local Group distances */
+  private localGroupComets: {
+    a: number; e: number; inc: number; omega: number; angle: number; speed: number;
+    nucleus: THREE.Sprite; glow: THREE.Sprite; trail: THREE.Line;
+    pts: THREE.Vector3[]; tmp: THREE.Vector3;
+  }[] = [];
   /* moon as its own body — camera flies to the real orbiting moon */
   private moonFocus = false;
   private moonLocal = { theta: 0.4, phi: 1.35, radius: 1.7 };
@@ -2989,7 +2999,15 @@ export class GlobeEngine {
   /* ------------ shooting stars ------------ */
 
   private spawnShootingStar() {
-    const r = 28 + Math.random() * 14;
+    /* shooting stars are tiny near Earth; at galaxy/local-group scale they
+       must launch far out in the void so they're actually visible */
+    const lg = this.mode === "localGroup";
+    const gx = this.mode === "galaxy";
+    const sc = lg ? 320 : gx ? 60 : 1;
+    const headScale = lg ? 3.2 : gx ? 1.1 : 0.4;
+    const ptsLen = lg ? 44 : gx ? 24 : 16;
+    const speedMul = lg ? 4 : gx ? 1.7 : 1;
+    const r = (28 + Math.random() * 14) * sc;
     const th = Math.random() * Math.PI * 2;
     const el = (Math.random() - 0.5) * 1.3;
     const start = new THREE.Vector3(
@@ -2998,10 +3016,10 @@ export class GlobeEngine {
       Math.sin(th) * Math.cos(el) * r
     );
     const t2 = Math.random() * Math.PI * 2;
-    const r2 = Math.random() * 7;
+    const r2 = Math.random() * 7 * sc * 0.6;
     const end = new THREE.Vector3(
       Math.cos(t2) * r2,
-      (Math.random() - 0.5) * 6,
+      (Math.random() - 0.5) * 6 * sc * 0.4,
       Math.sin(t2) * r2
     );
     const dir = end.sub(start).normalize();
@@ -3014,9 +3032,9 @@ export class GlobeEngine {
         depthWrite: false,
       })
     );
-    head.scale.setScalar(0.4);
+    head.scale.setScalar(headScale);
     head.position.copy(start);
-    const pts: THREE.Vector3[] = Array.from({ length: 16 }, () => start.clone());
+    const pts: THREE.Vector3[] = Array.from({ length: ptsLen }, () => start.clone());
     const geo = new THREE.BufferGeometry().setFromPoints(pts);
     const trail = new THREE.Line(
       geo,
@@ -3036,7 +3054,7 @@ export class GlobeEngine {
       dir,
       t: 0,
       life: 1.4 + Math.random() * 0.8,
-      speed: 26 + Math.random() * 14,
+      speed: (26 + Math.random() * 14) * speedMul,
     });
   }
 
@@ -4188,37 +4206,40 @@ export class GlobeEngine {
 
     if (type === "spiral") {
       const scale = baseScale + Math.random() * 3;
+      /* four broad logarithmic arms + a thicker disc = a proper spiral galaxy */
+      const arms = 4;
       makeStars(
-        900,
+        1500,
         () => {
-          const arm = Math.floor(Math.random() * 2);
-          const armTheta = arm * Math.PI + Math.random() * 0.4;
-          const r = 1 + Math.pow(Math.random(), 0.6) * scale;
+          const arm = (Math.random() * arms) | 0;
+          const armTheta = arm * ((Math.PI * 2) / arms) + Math.random() * 0.35;
+          const r = 1 + Math.pow(Math.random(), 0.55) * scale;
           const theta = armTheta + Math.log(r) / 0.5;
           const jitter = (Math.random() + Math.random() - 1) * (0.5 + r * 0.12);
           return {
             x: Math.cos(theta) * r + Math.cos(theta + Math.PI / 2) * jitter,
-            y: (Math.random() - 0.5) * 0.5,
+            y: (Math.random() - 0.5) * 0.7,
             z: Math.sin(theta) * r + Math.sin(theta + Math.PI / 2) * jitter,
           };
         },
-        0.14,
-        0.9
+        0.16,
+        0.95
       );
+      /* brighter, denser core bulge */
       makeStars(
-        300,
+        420,
         () => {
           let x = 0, y = 0, z = 0, rr = 99;
           do {
-            x = (Math.random() * 2 - 1) * 1.8;
+            x = (Math.random() * 2 - 1) * 1.9;
             y = (Math.random() * 2 - 1) * 1.2;
-            z = (Math.random() * 2 - 1) * 1.8;
+            z = (Math.random() * 2 - 1) * 1.9;
             rr = Math.hypot(x, y * 1.4, z);
           } while (rr > 1.6);
           return { x, y, z };
         },
-        0.18,
-        0.95
+        0.2,
+        1
       );
     } else if (type === "irregular") {
       makeStars(
@@ -4290,6 +4311,20 @@ export class GlobeEngine {
     );
     halo.scale.setScalar(baseScale * 1.5);
     grp.add(halo);
+
+    /* wide soft outer glow — real volume, not a flat sticker on black */
+    const outerGlow = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: this.dotTex,
+        color: tint,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0.12,
+        depthWrite: false,
+      })
+    );
+    outerGlow.scale.setScalar(baseScale * 2.6);
+    grp.add(outerGlow);
     return grp;
   }
 
@@ -4341,9 +4376,25 @@ export class GlobeEngine {
         depthWrite: false,
       });
       const photo = new THREE.Sprite(photoMat);
-      photo.scale.setScalar(def.scale * 2.0);
+      /* core-bulge detail: the real imagery rides inside the starry disc
+         rather than a giant flat billboard pasted over the void */
+      photo.scale.setScalar(def.scale * 1.15);
       photo.rotation.z = Math.random() * Math.PI;
       grp.add(photo);
+
+      /* a faint glow hugging the photo so it melts into the particle disc */
+      const photoHalo = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: this.dotTex,
+          color: def.color,
+          blending: THREE.AdditiveBlending,
+          transparent: true,
+          opacity: 0.16,
+          depthWrite: false,
+        })
+      );
+      photoHalo.scale.setScalar(def.scale * 1.7);
+      grp.add(photoHalo);
 
       /* --- real-feeling orbital physics --- */
       let orbit: { hostId: string; radius: number; angle: number; rate: number; wobble: number } | undefined;
@@ -4432,8 +4483,167 @@ export class GlobeEngine {
     this.localGroupGlobe.scale.setScalar(460);
     g.add(this.localGroupGlobe);
 
+    /* --- density: twinkling foreground stars + multi-colour nebulae,
+           so the cluster is a living cosmos, not a black void --- */
+    this.buildLocalGroupDepth(g);
+
+    /* --- big comets carving long bright trails through the cluster --- */
+    this.initLocalGroupComets();
+    for (const c of this.localGroupComets) g.add(c.nucleus, c.glow, c.trail);
+
     g.visible = false;
     this.scene.add(g);
+  }
+
+  /* density layers: a dense foreground starfield + soft interstellar
+     nebulae — so the cluster reads as a living cosmos, not a black void */
+  private buildLocalGroupDepth(g: THREE.Group) {
+    /* dense multi-colour foreground stars */
+    const count = 2600;
+    const pos = new Float32Array(count * 3);
+    const col = new Float32Array(count * 3);
+    const phases = new Float32Array(count);
+    const cols = [0xffffff, 0xffe9c8, 0xcfe2ff, 0xfff6e0, 0xd8c8ff, 0xbfe6ff];
+    for (let i = 0; i < count; i++) {
+      const th = Math.random() * Math.PI * 2;
+      const ph = Math.acos(Math.random() * 2 - 1);
+      const r = 340 + Math.pow(Math.random(), 0.7) * 260;
+      pos[i * 3] = r * Math.sin(ph) * Math.cos(th);
+      pos[i * 3 + 1] = r * Math.cos(ph) * 0.85;
+      pos[i * 3 + 2] = r * Math.sin(ph) * Math.sin(th);
+      const c = new THREE.Color(cols[(Math.random() * cols.length) | 0]);
+      const bright = 0.4 + Math.random() * 0.6;
+      col[i * 3] = c.r * bright; col[i * 3 + 1] = c.g * bright; col[i * 3 + 2] = c.b * bright;
+      phases[i] = Math.random() * Math.PI * 2;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    const pts = new THREE.Points(
+      geo,
+      new THREE.PointsMaterial({
+        size: 0.8,
+        map: this.dotTex,
+        vertexColors: true,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    this.localGroupStars = { pts, phases };
+    g.add(pts);
+
+    /* soft interstellar nebulae drifting between the galaxies */
+    const nebDefs = [
+      { r: 230, col: 0x1b3a6b, o: 0.5 }, { r: 300, col: 0x5b2b6b, o: 0.42 },
+      { r: 260, col: 0x2b5b7b, o: 0.5 }, { r: 200, col: 0x4b2b5b, o: 0.4 },
+      { r: 330, col: 0x2b4b8b, o: 0.38 }, { r: 240, col: 0x7b2b4b, o: 0.34 },
+      { r: 280, col: 0x1b6b6b, o: 0.44 }, { r: 215, col: 0x3b3b8b, o: 0.42 },
+    ];
+    for (const n of nebDefs) {
+      const s = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: this.dotTex,
+          color: n.col,
+          transparent: true,
+          opacity: 0,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+        })
+      );
+      s.scale.setScalar(n.r * 2.2);
+      const a2 = Math.random() * Math.PI * 2;
+      const b2 = Math.acos(Math.random() * 2 - 1);
+      const rr = 90 + Math.random() * 190;
+      s.position.set(
+        rr * Math.sin(b2) * Math.cos(a2),
+        (Math.random() - 0.5) * 180,
+        rr * Math.sin(b2) * Math.sin(a2)
+      );
+      (s.material as THREE.SpriteMaterial).opacity = n.o;
+      this.localGroupNebula.push({ sprite: s, drift: 0.4 + Math.random() * 0.8 });
+      g.add(s);
+    }
+  }
+
+  /* comets big and bright enough to see across the entire cluster */
+  private initLocalGroupComets() {
+    const defs = [
+      { a: 300, e: 0.62, inc: 1.2, omega: 0.4, speed: 0.06, color: 0x9fd8ff },
+      { a: 350, e: 0.55, inc: -1.6, omega: 2.4, speed: -0.07, color: 0xc9f7b2 },
+      { a: 265, e: 0.7, inc: 2.0, omega: 4.0, speed: 0.08, color: 0xffd0a0 },
+    ];
+    for (const d of defs) {
+      const nucleus = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: this.dotTex, color: 0xffffff,
+          blending: THREE.AdditiveBlending, transparent: true, depthWrite: false,
+        })
+      );
+      nucleus.scale.setScalar(2.2);
+      const glow = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: this.dotTex, color: d.color,
+          blending: THREE.AdditiveBlending, transparent: true, opacity: 0.5, depthWrite: false,
+        })
+      );
+      glow.scale.setScalar(7);
+      const angle0 = Math.random() * Math.PI * 2;
+      const pts: THREE.Vector3[] = [];
+      for (let i = 70; i >= 0; i--) {
+        const aa = angle0 - i * 0.02 * Math.sign(d.speed);
+        pts.push(this.localGroupCometPosOf(d.a, d.e, d.inc, d.omega, aa, new THREE.Vector3()));
+      }
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const trail = new THREE.Line(
+        geo,
+        new THREE.LineBasicMaterial({
+          color: d.color, transparent: true, opacity: 0.5,
+          blending: THREE.AdditiveBlending, depthWrite: false,
+        })
+      );
+      this.localGroupComets.push({
+        a: d.a, e: d.e, inc: d.inc, omega: d.omega, angle: angle0, speed: d.speed,
+        nucleus, glow, trail, pts, tmp: new THREE.Vector3(),
+      });
+    }
+  }
+
+  private localGroupCometPosOf(a: number, e: number, inc: number, omega: number, angle: number, out: THREE.Vector3) {
+    const r = (a * (1 - e * e)) / (1 + e * Math.cos(angle));
+    const x = r * Math.cos(angle);
+    const y = r * Math.sin(angle) * Math.sin(inc);
+    const z = r * Math.sin(angle) * Math.cos(inc);
+    const cosO = Math.cos(omega), sinO = Math.sin(omega);
+    out.set(x * cosO + z * sinO, y, -x * sinO + z * cosO);
+    return out;
+  }
+
+  private updateLocalGroupComets(dt: number) {
+    for (const c of this.localGroupComets) {
+      const r = (c.a * (1 - c.e * c.e)) / (1 + c.e * Math.cos(c.angle));
+      c.angle += c.speed * dt * (1 + 40 / (r * r));
+      c.pts.pop();
+      c.pts.unshift(this.localGroupCometPosOf(c.a, c.e, c.inc, c.omega, c.angle, c.tmp).clone());
+      c.nucleus.position.copy(c.pts[0]);
+      c.glow.position.copy(c.pts[0]);
+      const tgeo = c.trail.geometry as THREE.BufferGeometry;
+      tgeo.setFromPoints(c.pts);
+      tgeo.attributes.position.needsUpdate = true;
+    }
+  }
+
+  /* the starfield breathes gently + nebulae drift instead of sitting frozen */
+  private updateLocalGroupDepth() {
+    const ls = this.localGroupStars;
+    if (ls) {
+      (ls.pts.material as THREE.PointsMaterial).opacity = 0.85 + 0.15 * Math.sin(this.time * 0.9);
+    }
+    for (let i = 0; i < this.localGroupNebula.length; i++) {
+      const n = this.localGroupNebula[i];
+      (n.sprite.material as THREE.SpriteMaterial).opacity =
+        0.32 + 0.14 * Math.sin(this.time * n.drift + i);
+    }
   }
 
   private nearestLocalHost(pos: [number, number, number], hosts: Record<string, [number, number, number]>): string {
@@ -6268,6 +6478,9 @@ export class GlobeEngine {
     /* local group — real orbital dynamics + galactic disc rotation + NASA fade */
     if (this.mode === "localGroup" && this.localGroupGroup.visible) {
       this.localGroupGroup.rotation.y += dt * 0.0012;
+      /* big comets + breathing starfield + drifting nebulae */
+      this.updateLocalGroupComets(dt);
+      this.updateLocalGroupDepth();
       if (this.localGroupGlobe) {
         (this.localGroupGlobe.material as THREE.SpriteMaterial).opacity =
           0.05 + 0.03 * Math.sin(this.time * 0.4);

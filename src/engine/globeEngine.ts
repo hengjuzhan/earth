@@ -4411,7 +4411,70 @@ export class GlobeEngine {
         })
       )
     );
+    /* real 3D objects, not just light-haze: solid stellar cores + a sample
+       planetary system, so galaxies read as STAR SYSTEMS you can visit */
+    this.addSolidStars(grp, baseScale);
+    this.addPlanetSystem(grp, baseScale);
     return grp;
+  }
+
+  /** solid stellar cores — actual little star BALLS scattered in the disc,
+      so a galaxy resolves into individual stars when you dive in */
+  private addSolidStars(grp: THREE.Group, baseScale: number) {
+    const count = 48;
+    const inst = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 10, 8), new THREE.MeshBasicMaterial(), count);
+    const M = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const sc = new THREE.Vector3();
+    const p = new THREE.Vector3();
+    const cols = [0xfff6df, 0xffe3b8, 0xf3f6ff, 0xffcf9a, 0xcfddff, 0xfff1c4, 0xffffff];
+    for (let i = 0; i < count; i++) {
+      const th = Math.random() * Math.PI * 2;
+      const r = 0.45 + Math.random() * baseScale * 0.72;
+      const sz = Math.max(baseScale * 0.035, 0.05) * (0.7 + Math.random() * 0.8);
+      p.set(Math.cos(th) * r, (Math.random() - 0.5) * 0.6, Math.sin(th) * r);
+      sc.set(sz, sz, sz);
+      M.compose(p, q, sc);
+      inst.setMatrixAt(i, M);
+      inst.setColorAt(i, new THREE.Color(cols[(Math.random() * cols.length) | 0]));
+    }
+    inst.instanceMatrix.needsUpdate = true;
+    if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
+    grp.add(inst);
+  }
+
+  /** a representative planetary system — one warm host star circled by real
+      rocky worlds with faint rings, embedded in the disc */
+  private addPlanetSystem(grp: THREE.Group, baseScale: number) {
+    const hostR = Math.max(baseScale * 0.13, 0.6);
+    const host = new THREE.Mesh(new THREE.SphereGeometry(hostR, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffd9a8 }));
+    const th0 = Math.random() * Math.PI * 2;
+    host.position.set(Math.cos(th0) * baseScale * 0.55, 0, Math.sin(th0) * baseScale * 0.55);
+    grp.add(host);
+    const starGlow = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: this.dotTex, color: 0xffd9a8,
+        blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.7,
+      })
+    );
+    starGlow.scale.setScalar(hostR * 4.2);
+    host.add(starGlow);
+    const pcols = [0x9fb7d0, 0xc9a06a, 0x7a8aa0, 0xb86a4a];
+    [2.6, 3.9, 5.5].forEach((orb, idx) => {
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(orb * hostR * 0.86, orb * hostR * 0.98, 48),
+        new THREE.MeshBasicMaterial({ color: 0x2a3550, transparent: true, opacity: 0.35, side: THREE.DoubleSide })
+      );
+      ring.rotation.x = Math.PI / 2;
+      host.add(ring);
+      const pr = orb * hostR;
+      const pl = new THREE.Mesh(
+        new THREE.SphereGeometry(pr * (idx === 0 ? 0.15 : idx === 2 ? 0.2 : 0.12), 12, 10),
+        new THREE.MeshBasicMaterial({ color: pcols[idx] })
+      );
+      pl.position.set(Math.cos(idx * 2.1) * pr, 0, Math.sin(idx * 2.1) * pr);
+      host.add(pl);
+    });
   }
 
   /* ====================================================================
@@ -4954,7 +5017,11 @@ export class GlobeEngine {
     this.flight = null;
     g.group.getWorldPosition(g.world);
     const out = g.world.clone().normalize();
-    const to = g.world.clone().addScaledVector(out, 26);
+    if (out.lengthSq() < 1e-6) out.set(0, 0, 1);
+    /* frame the WHOLE disc from outside — fixed 26 drops the camera into the
+       disc for corner-case scales, where the thin disc looks like nothing */
+    const dist = Math.max(g.scale * 2.4, 36);
+    const to = g.world.clone().addScaledVector(out, dist);
     this.startFlight(to, g.world.clone(), 2.6, () => {
       const rel = this.camera.position.clone().sub(g.world);
       const len = rel.length() || 1;
@@ -5003,6 +5070,7 @@ export class GlobeEngine {
     this.exoFocusId = id;
     this.galaxyFocusId = null;
     const out = ex.world.clone().normalize();
+    if (out.lengthSq() < 1e-6) out.set(0, 0, 1);
     const to = ex.world.clone().addScaledVector(out, ex.def.radius * 2.6);
     this.startFlight(to, ex.world.clone(), 1.8, () => {
       const rel = this.camera.position.clone().sub(ex.world);

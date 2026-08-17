@@ -4325,6 +4325,38 @@ export class GlobeEngine {
     );
     outerGlow.scale.setScalar(baseScale * 2.6);
     grp.add(outerGlow);
+
+    /* bright RESOLVED field stars scattered through the disc — so a galaxy
+       reads as a swarm of individual stars, not a uniform ball of light */
+    const starCols = [0xffffff, 0xffe9c8, 0xcfe2ff, 0xffd0a0, 0xd8c8ff, 0x9fe8ff];
+    const sCount = type === "spiral" ? 120 : 70;
+    const sPos = new Float32Array(sCount * 3);
+    const sCol = new Float32Array(sCount * 3);
+    for (let i = 0; i < sCount; i++) {
+      const sth = Math.random() * Math.PI * 2;
+      const sr = 0.3 + Math.random() * baseScale;
+      sPos[i * 3] = Math.cos(sth) * sr;
+      sPos[i * 3 + 1] = (Math.random() - 0.5) * 0.9;
+      sPos[i * 3 + 2] = Math.sin(sth) * sr;
+      const sc = new THREE.Color(starCols[(Math.random() * starCols.length) | 0]);
+      const sb = 0.55 + Math.random() * 0.45;
+      sCol[i * 3] = sc.r * sb; sCol[i * 3 + 1] = sc.g * sb; sCol[i * 3 + 2] = sc.b * sb;
+    }
+    const sGeo = new THREE.BufferGeometry();
+    sGeo.setAttribute("position", new THREE.BufferAttribute(sPos, 3));
+    sGeo.setAttribute("color", new THREE.BufferAttribute(sCol, 3));
+    const sStars = new THREE.Points(
+      sGeo,
+      new THREE.PointsMaterial({
+        size: Math.max(0.35, baseScale * 0.032),
+        map: this.dotTex,
+        vertexColors: true,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    grp.add(sStars);
     return grp;
   }
 
@@ -4564,6 +4596,64 @@ export class GlobeEngine {
       this.localGroupNebula.push({ sprite: s, drift: 0.4 + Math.random() * 0.8 });
       g.add(s);
     }
+
+    /* a loose field of drifting debris — meteoroids & rocky fragments
+       scattered through the cluster so it never feels empty */
+    const rockCols = [0x8a7f74, 0x5f6b72, 0x9a8d7e, 0x6f6256, 0x7b6f66];
+    const dCount = 380;
+    const dPos = new Float32Array(dCount * 3);
+    const dCol = new Float32Array(dCount * 3);
+    for (let i = 0; i < dCount; i++) {
+      const ath = Math.random() * Math.PI * 2;
+      const aph = Math.acos(Math.random() * 2 - 1);
+      const ar = 60 + Math.pow(Math.random(), 0.6) * 260;
+      dPos[i * 3] = ar * Math.sin(aph) * Math.cos(ath);
+      dPos[i * 3 + 1] = (Math.random() - 0.5) * 120;
+      dPos[i * 3 + 2] = ar * Math.sin(aph) * Math.sin(ath);
+      const rc = new THREE.Color(rockCols[(Math.random() * rockCols.length) | 0]);
+      const rb = 0.4 + Math.random() * 0.4;
+      dCol[i * 3] = rc.r * rb; dCol[i * 3 + 1] = rc.g * rb; dCol[i * 3 + 2] = rc.b * rb;
+    }
+    const dGeo = new THREE.BufferGeometry();
+    dGeo.setAttribute("position", new THREE.BufferAttribute(dPos, 3));
+    dGeo.setAttribute("color", new THREE.BufferAttribute(dCol, 3));
+    const debris = new THREE.Points(
+      dGeo,
+      new THREE.PointsMaterial({
+        size: 0.28, map: this.dotTex, vertexColors: true,
+        transparent: true, opacity: 0.85,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      })
+    );
+    g.add(debris);
+
+    /* faint ultra-deep background — distant cluster haze that sells the
+       sheer scale of the cosmos */
+    const deepCount = 750;
+    const dph = new Float32Array(deepCount * 3);
+    const dphc = new Float32Array(deepCount * 3);
+    for (let i = 0; i < deepCount; i++) {
+      const bth = Math.random() * Math.PI * 2;
+      const bph2 = Math.acos(Math.random() * 2 - 1);
+      const br2 = 760 + Math.random() * 500;
+      dph[i * 3] = br2 * Math.sin(bph2) * Math.cos(bth);
+      dph[i * 3 + 1] = br2 * Math.cos(bph2);
+      dph[i * 3 + 2] = br2 * Math.sin(bph2) * Math.sin(bth);
+      const b = 0.12 + Math.random() * 0.25;
+      dphc[i * 3] = 0.7 * b; dphc[i * 3 + 1] = 0.8 * b; dphc[i * 3 + 2] = b;
+    }
+    const dphGeo = new THREE.BufferGeometry();
+    dphGeo.setAttribute("position", new THREE.BufferAttribute(dph, 3));
+    dphGeo.setAttribute("color", new THREE.BufferAttribute(dphc, 3));
+    const deepPts = new THREE.Points(
+      dphGeo,
+      new THREE.PointsMaterial({
+        size: 0.22, map: this.dotTex, vertexColors: true,
+        transparent: true, opacity: 0.6,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      })
+    );
+    g.add(deepPts);
   }
 
   /* comets big and bright enough to see across the entire cluster */
@@ -4661,13 +4751,12 @@ export class GlobeEngine {
   }
 
   private loadLocalGroupPhotos() {
-    /* galaxy id → real NASA / Hubble observation (large + medium fallback) */
+    /* real NASA / Hubble observations, kept to the BIGGEST members and
+       played as a small, -rotating core-bulge detail embedded in the disc
+       (not a flat photo billboard over every galaxy). large→medium fallback. */
     const map: Record<string, string> = {
       "milky-way": "PIA18913",   // Planck full-sky portrait of the Milky Way
       andromeda: "PIA04921",     // GALEX ultraviolet view of M31
-      triangulum: "PIA25165",    // Herschel/IRAS far-infrared M33
-      lmc: "PIA07137",           // Spitzer infrared mosaic of the whole LMC
-      smc: "PIA25164",           // Herschel/IRAS far-infrared SMC
     };
     for (const [id, nasaId] of Object.entries(map)) {
       const lg = this.localGroupGalaxies.find((x) => x.def.id === id);

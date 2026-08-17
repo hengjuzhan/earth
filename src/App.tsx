@@ -818,7 +818,11 @@ export default function App() {
           }}
         >
           <span className="text-[9px] tracking-[0.22em]" style={{ color: hover.color }}>
-            ◈ {hover.name}
+            ◈ {(() => {
+              const lgz = localGroupGalaxyById(hover.id);
+              if (!lgz) return hover.name;
+              return lang === "zh" ? lgz.zh : lgz.name;
+            })()}
           </span>
         </div>
       )}

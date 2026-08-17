@@ -15,7 +15,7 @@ import {
   type GalaxyStar, type NeighborGalaxy, type Planet,
 } from "./data/planets";
 import { localGroupGalaxyById, type LocalGroupGalaxy } from "./data/localGroup";
-import { GALAXY_INTERIOR_STARS_BY_GALAXY, type GalaxyInteriorStar } from "./data/galaxyInteriors";
+import { GALAXY_INTERIOR_STARS_BY_GALAXY, GALAXY_INTERIOR_PLANETS_BY_GALAXY, type GalaxyInteriorStar, type GalaxyInteriorPlanet } from "./data/galaxyInteriors";
 import { PROFILE } from "./data/profile";
 import { ALIEN_MSGS, PLANET_ZH, t, type Lang } from "./data/i18n";
 import { audio } from "./audio/tacticalAudio";
@@ -48,6 +48,7 @@ export default function App() {
   const [localGalaxy, setLocalGalaxy] = useState<LocalGroupGalaxy | null>(null);
   const [exoPlanet, setExoPlanet] = useState<Planet | null>(null);
   const [galaxyInteriorStar, setGalaxyInteriorStar] = useState<GalaxyInteriorStar | null>(null);
+  const [galaxyInteriorPlanet, setGalaxyInteriorPlanet] = useState<GalaxyInteriorPlanet | null>(null);
 
   const [flash, setFlash] = useState(false);
   const [hover, setHover] = useState<HoverInfo | null>(null);
@@ -248,6 +249,7 @@ export default function App() {
       setGalaxy(null);
       setLocalGalaxy(null);
       setGalaxyInteriorStar(null);
+      setGalaxyInteriorPlanet(null);
       return;
     }
     /* LOCAL GROUP — one zoom level past the galaxy */
@@ -406,6 +408,29 @@ export default function App() {
     );
   }, [L, pushLog]);
 
+  /* ---------- galaxy interior planets ---------- */
+
+  const handleGalaxyInteriorPlanetClick = useCallback((id: string) => {
+    const planet = GALAXY_INTERIOR_PLANETS_BY_GALAXY.andromeda.find((p) => p.id === id)
+      ?? GALAXY_INTERIOR_PLANETS_BY_GALAXY.triangulum.find((p) => p.id === id)
+      ?? GALAXY_INTERIOR_PLANETS_BY_GALAXY.lmc.find((p) => p.id === id)
+      ?? GALAXY_INTERIOR_PLANETS_BY_GALAXY.smc.find((p) => p.id === id)
+      ?? GALAXY_INTERIOR_PLANETS_BY_GALAXY.ic10.find((p) => p.id === id)
+      ?? GALAXY_INTERIOR_PLANETS_BY_GALAXY.ngc6822.find((p) => p.id === id);
+    if (!planet) return;
+    audio.lock();
+    setGalaxyInteriorPlanet(planet);
+    setGalaxyInteriorStar(null);
+    setGalaxy(null);
+    setLocalGalaxy(null);
+    setStar(null);
+    setSelectedPlanetId(null);
+    pushLog(
+      L(`◈ 河外行星 · ${planet.zh}`, `◈ EXTRAGALACTIC PLANET · ${planet.name}`),
+      "info"
+    );
+  }, [L, pushLog]);
+
   /* ---------- exoplanets inside neighbour galaxies ---------- */
 
   const handleExoPlanetClick = useCallback((id: string) => {
@@ -443,6 +468,7 @@ export default function App() {
     setExoPlanet(null);
     setStar(null);
     setGalaxyInteriorStar(null);
+    setGalaxyInteriorPlanet(null);
     setSelectedPlanetId(null);
     engineRef.current?.clearGalaxyFocus();
     engineRef.current?.clearLocalGalaxyFocus();
@@ -462,6 +488,7 @@ export default function App() {
     setGalaxy(null);
     setLocalGalaxy(null);
     setGalaxyInteriorStar(null);
+    setGalaxyInteriorPlanet(null);
     engineRef.current?.clearSatFocus();
     engineRef.current?.selectMission(null);
     setBodyMode("earth");
@@ -830,6 +857,7 @@ export default function App() {
           onExoPlanetClick={handleExoPlanetClick}
           onLocalGalaxyClick={handleLocalGalaxyClick}
           onGalaxyInteriorStarClick={handleGalaxyInteriorStarClick}
+          onGalaxyInteriorPlanetClick={handleGalaxyInteriorPlanetClick}
         />
       </div>
 
@@ -859,6 +887,7 @@ export default function App() {
         galaxy={localGalaxy ?? galaxy}
         planet={exoPlanet ?? planet}
         interiorStar={galaxyInteriorStar}
+        interiorPlanet={galaxyInteriorPlanet}
         onWide={handleWide}
       />
 

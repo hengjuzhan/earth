@@ -7,7 +7,6 @@ import {
   GALAXY_INTERIOR_STARS_BY_GALAXY,
   GALAXY_INTERIOR_PLANETS_BY_GALAXY,
   GALAXY_INTERIOR_CONFIGS,
-  type GalaxyInteriorStar,
   type GalaxyInteriorPlanet,
 } from "../data/galaxyInteriors";
 
@@ -1037,25 +1036,36 @@ export class GlobeEngine {
   /* ---- GALAXY INTERIOR (星系内部) — enter any galaxy, view its stars & planets ---- */
   private galaxyInteriorGroup = new THREE.Group();
   private galaxyInteriorCurrent: string | null = null;
-  private galaxyInteriorStars: {
-    def: GalaxyInteriorStar;
-    mesh: THREE.Mesh;
+  /* star markers (mirrors starMarkers): clickable, proper motion, orbits */
+  private galaxyInteriorStarMarkers: {
+    id: string;
+    name: string;
+    color: string;
     glow: THREE.Sprite;
     world: THREE.Vector3;
+    mesh: THREE.Mesh;
+    orbit?: { center: THREE.Vector3; axis: THREE.Vector3; phase: number; rate: number; radius: number };
+    proper?: THREE.Vector3;
+    properCycle: number;
+    base: THREE.Vector3;
   }[] = [];
-  private galaxyInteriorPlanets: {
+  /* exoplanets orbiting the interior stars */
+  private galaxyInteriorExoPlanets: {
     def: GalaxyInteriorPlanet;
     pivot: THREE.Group;
     mesh: THREE.Mesh;
     glow: THREE.Sprite;
     angle: number;
     world: THREE.Vector3;
+    parentStarId: string;
   }[] = [];
   private galaxyInteriorBg: THREE.Points | null = null;
   private galaxyInteriorLocal = { theta: 0.5, phi: 1.2, radius: 60 };
   private galaxyInteriorFocusId: string | null = null;
   private hoverGalaxyInterior: string | null = null;
+  private hoverGalaxyInteriorExo: string | null = null;
   private onGalaxyInteriorStarClick?: (id: string) => void;
+  private onGalaxyInteriorPlanetClick?: (id: string) => void;
 
   /* moon as its own body — camera flies to the real orbiting moon */
   private moonFocus = false;
@@ -1112,6 +1122,7 @@ export class GlobeEngine {
       onExoPlanetClick?: (id: string) => void;
       onLocalGalaxyClick?: (id: string) => void;
       onGalaxyInteriorStarClick?: (id: string) => void;
+      onGalaxyInteriorPlanetClick?: (id: string) => void;
     } = {}
   ) {
     this.container = container;
@@ -1132,6 +1143,7 @@ export class GlobeEngine {
     this.onExoPlanetClick = opts.onExoPlanetClick;
     this.onLocalGalaxyClick = opts.onLocalGalaxyClick;
     this.onGalaxyInteriorStarClick = opts.onGalaxyInteriorStarClick;
+    this.onGalaxyInteriorPlanetClick = opts.onGalaxyInteriorPlanetClick;
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -4949,17 +4961,17 @@ export class GlobeEngine {
 
   /** focus a specific star inside a galaxy interior */
   focusGalaxyInteriorStar(id: string) {
-    const s = this.galaxyInteriorStars.find((x) => x.def.id === id);
-    if (!s || this.mode !== "galaxyInterior") return;
+    const m = this.galaxyInteriorStarMarkers.find((x) => x.id === id);
+    if (!m || this.mode !== "galaxyInterior") return;
     this.galaxyInteriorFocusId = id;
     this.flight = null;
-    const out = s.world.clone().normalize();
+    const out = m.world.clone().normalize();
     if (out.lengthSq() < 1e-6) out.set(0, 0, 1);
-    const r = (s.mesh.geometry as THREE.SphereGeometry).parameters.radius;
+    const r = (m.mesh.geometry as THREE.SphereGeometry).parameters.radius;
     const dist = Math.max(r * 4, 2.6);
-    const to = s.world.clone().addScaledVector(out, dist);
-    this.startFlight(to, s.world.clone(), 1.6, () => {
-      const rel = this.camera.position.clone().sub(s.world);
+    const to = m.world.clone().addScaledVector(out, dist);
+    this.startFlight(to, m.world.clone(), 1.6, () => {
+      const rel = this.camera.position.clone().sub(m.world);
       const len = rel.length() || 1;
       this.galaxyInteriorLocal = {
         theta: Math.atan2(rel.x, rel.z),
@@ -5001,15 +5013,17 @@ export class GlobeEngine {
     this.galaxyInteriorCurrent = galaxyId;
 
     const g = this.galaxyInteriorGroup;
-    /* clear any previous interior */
     while (g.children.length > 0) {
       const child = g.children[0];
       this.disposeRecursive(child);
       g.remove(child);
     }
-    this.galaxyInteriorStars = [];
-    this.galaxyInteriorPlanets = [];
+    this.galaxyInteriorStarMarkers = [];
+    this.galaxyInteriorExoPlanets = [];
     this.galaxyInteriorBg = null;
+    this.galaxyInteriorFocusId = null;
+    this.hoverGalaxyInterior = null;
+    this.hoverGalaxyInteriorExo = null;
 
     const makeStars = (
       count: number,
@@ -5035,15 +5049,7 @@ export class GlobeEngine {
       geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
       const pts = new THREE.Points(
         geo,
-        new THREE.PointsMaterial({
-          size,
-          map: this.dotTex,
-          vertexColors: true,
-          transparent: true,
-          opacity,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-        })
+        new THREE.PointsMaterial({ size, map: this.dotTex, vertexColors: true, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false })
       );
       g.add(pts);
       return pts;
@@ -5057,19 +5063,21 @@ export class GlobeEngine {
       return new THREE.Color(0xffb98a);
     };
 
-    /* ---- spiral arms (for spiral galaxies) ---- */
+    /* ---- spiral disc ---- */
     if (cfg.spiralArms > 0) {
+      const armCount = cfg.spiralArms;
       const discGen = () => {
-        const arm = Math.floor(Math.random() * cfg.spiralArms);
-        const armTheta = (arm / cfg.spiralArms) * Math.PI * 2;
-        let r = cfg.coreRadius + Math.pow(Math.random(), 0.55) * (cfg.discRadius - cfg.coreRadius);
+        const arm = Math.floor(Math.random() * armCount);
+        const armTheta = (arm / armCount) * Math.PI * 2;
+        const r = cfg.coreRadius + Math.pow(Math.random(), 0.55) * (cfg.discRadius - cfg.coreRadius);
         const theta = armTheta + Math.log(r / cfg.coreRadius) / Math.tan(cfg.armPitch);
         const sigma = cfg.armWidth * (1 + r * 0.08);
         const jitter = (Math.random() + Math.random() + Math.random() - 1.5) * sigma;
-        const x = Math.cos(theta) * r + Math.cos(theta + Math.PI / 2) * jitter;
-        const z = Math.sin(theta) * r + Math.sin(theta + Math.PI / 2) * jitter;
-        const y = (Math.random() + Math.random() - 1) * (0.5 + r * 0.04);
-        return { x, y, z };
+        return {
+          x: Math.cos(theta) * r + Math.cos(theta + Math.PI / 2) * jitter,
+          z: Math.sin(theta) * r + Math.sin(theta + Math.PI / 2) * jitter,
+          y: (Math.random() + Math.random() - 1) * (0.5 + r * 0.04),
+        };
       };
       makeStars(cfg.starCount * 6, starColor, discGen, 0.14, 0.9);
     }
@@ -5087,7 +5095,20 @@ export class GlobeEngine {
     };
     makeStars(cfg.starCount * 2, () => new THREE.Color(cfg.coreColor), bulgeGen, 0.18, 0.85);
 
-    /* ---- irregular/elliptical cloud (for non-spiral galaxies) ---- */
+    /* ---- halo ---- */
+    const haloGen = () => {
+      const rr = cfg.discRadius * 0.3 + Math.random() * cfg.discRadius * 0.8;
+      const th = Math.random() * Math.PI * 2;
+      const ph = Math.acos(Math.random() * 2 - 1);
+      return {
+        x: rr * Math.sin(ph) * Math.cos(th),
+        y: rr * Math.cos(ph) * 0.5,
+        z: rr * Math.sin(ph) * Math.sin(th),
+      };
+    };
+    makeStars(cfg.starCount * 0.8, () => new THREE.Color(0xcfdfff), haloGen, 0.1, 0.4);
+
+    /* ---- irregular/elliptical cloud ---- */
     if (cfg.spiralArms === 0) {
       const cloudGen = () => {
         let x = 0, y = 0, z = 0;
@@ -5103,9 +5124,10 @@ export class GlobeEngine {
 
     /* ---- dust lanes ---- */
     if (cfg.dustAmount > 0 && cfg.spiralArms > 0) {
+      const armCount = cfg.spiralArms;
       const dustGen = () => {
-        const arm = Math.floor(Math.random() * cfg.spiralArms);
-        const armTheta = (arm / cfg.spiralArms) * Math.PI * 2;
+        const arm = Math.floor(Math.random() * armCount);
+        const armTheta = (arm / armCount) * Math.PI * 2;
         const r = cfg.coreRadius + 1 + Math.pow(Math.random(), 0.5) * (cfg.discRadius - cfg.coreRadius);
         const theta = armTheta + Math.log(r / cfg.coreRadius) / Math.tan(cfg.armPitch) + 0.12;
         const sigma = cfg.armWidth * 0.5;
@@ -5121,19 +5143,12 @@ export class GlobeEngine {
 
     /* ---- core glow ---- */
     const coreGlow = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        map: this.dotTex,
-        color: cfg.coreColor,
-        blending: THREE.AdditiveBlending,
-        transparent: true,
-        opacity: 0.45,
-        depthWrite: false,
-      })
+      new THREE.SpriteMaterial({ map: this.dotTex, color: cfg.coreColor, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.45, depthWrite: false })
     );
     coreGlow.scale.setScalar(cfg.coreRadius * 3);
     g.add(coreGlow);
 
-    /* ---- real known stars ---- */
+    /* ---- clickable real stars (mirrors starMarkers pattern) ---- */
     const stars = GALAXY_INTERIOR_STARS_BY_GALAXY[galaxyId] ?? [];
     for (const s of stars) {
       const pos = new THREE.Vector3(s.pos[0], s.pos[1], s.pos[2]);
@@ -5141,72 +5156,65 @@ export class GlobeEngine {
       mesh.position.copy(pos);
       g.add(mesh);
       const glow = new THREE.Sprite(
-        new THREE.SpriteMaterial({
-          map: this.dotTex,
-          color: s.color,
-          blending: THREE.AdditiveBlending,
-          transparent: true,
-          depthWrite: false,
-          opacity: 0.7,
-        })
+        new THREE.SpriteMaterial({ map: this.dotTex, color: s.color, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.75 })
       );
-      glow.scale.setScalar(1.3);
+      glow.scale.setScalar(1.5);
       glow.position.copy(pos);
       g.add(glow);
-      this.galaxyInteriorStars.push({
-        def: s,
-        mesh,
+      this.galaxyInteriorStarMarkers.push({
+        id: s.id,
+        name: s.name,
+        color: s.color,
         glow,
-        world: new THREE.Vector3().copy(pos),
+        world: pos.clone(),
+        mesh,
+        properCycle: Math.random() * Math.PI * 2,
+        base: pos.clone(),
       });
     }
 
-    /* ---- real known exoplanets ---- */
+    /* proper motion for interior stars */
+    for (const m of this.galaxyInteriorStarMarkers) {
+      const speed = 0.006 + Math.random() * 0.014;
+      const ang = Math.random() * Math.PI * 2;
+      m.proper = new THREE.Vector3(Math.cos(ang), (Math.random() - 0.5) * 0.15, Math.sin(ang))
+        .normalize()
+        .multiplyScalar(speed);
+    }
+
+    /* ---- exoplanets orbiting the interior stars ---- */
     const planets = GALAXY_INTERIOR_PLANETS_BY_GALAXY[galaxyId] ?? [];
     for (const p of planets) {
-      const parentStar = this.galaxyInteriorStars.find((s) => s.def.id === p.parentStarId);
+      const parentStar = this.galaxyInteriorStarMarkers.find((s) => s.id === p.parentStarId);
       const pivot = new THREE.Group();
-      if (parentStar) {
-        pivot.position.copy(parentStar.world);
-      }
-      const tex = this.makeExoTexture("gas"); // use gas giant texture
+      if (parentStar) pivot.position.copy(parentStar.world);
+      const tex = this.makeExoTexture(p.radius > 0.06 ? "gas" : "desert");
       const mesh = new THREE.Mesh(
         new THREE.SphereGeometry(p.radius * 1.5, 32, 24),
-        new THREE.MeshPhongMaterial({
-          map: tex,
-          emissive: 0x101018,
-          emissiveIntensity: 0.3,
-          specular: 0x334455,
-          shininess: 12,
-        })
+        new THREE.MeshPhongMaterial({ map: tex, emissive: 0x101018, emissiveIntensity: 0.3, specular: 0x334455, shininess: 12 })
       );
       mesh.position.set(Math.cos(p.phase) * p.orbit, 0, Math.sin(p.phase) * p.orbit);
       pivot.add(mesh);
       const glow = new THREE.Sprite(
-        new THREE.SpriteMaterial({
-          map: this.dotTex,
-          color: p.color,
-          blending: THREE.AdditiveBlending,
-          transparent: true,
-          depthWrite: false,
-          opacity: 0.4,
-        })
+        new THREE.SpriteMaterial({ map: this.dotTex, color: p.color, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.4 })
       );
       glow.scale.setScalar(p.radius * 3.5);
       mesh.add(glow);
       g.add(pivot);
-      this.galaxyInteriorPlanets.push({
+      pivot.visible = false; /* hidden until parent star is focused */
+      this.galaxyInteriorExoPlanets.push({
         def: p,
         pivot,
         mesh,
         glow,
         angle: p.phase,
         world: new THREE.Vector3(),
+        parentStarId: p.parentStarId,
       });
     }
 
     /* ---- background field stars ---- */
-    const bgCount = 400;
+    const bgCount = 500;
     const bgPos = new Float32Array(bgCount * 3);
     const bgCol = new Float32Array(bgCount * 3);
     const fieldCols = [0x9fc8ff, 0xfff4d0, 0xffd8a0, 0xe0c8ff];
@@ -5227,15 +5235,7 @@ export class GlobeEngine {
     bgGeo.setAttribute("color", new THREE.BufferAttribute(bgCol, 3));
     this.galaxyInteriorBg = new THREE.Points(
       bgGeo,
-      new THREE.PointsMaterial({
-        size: 0.4,
-        map: this.dotTex,
-        vertexColors: true,
-        transparent: true,
-        opacity: 0.5,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      })
+      new THREE.PointsMaterial({ size: 0.4, map: this.dotTex, vertexColors: true, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false })
     );
     g.add(this.galaxyInteriorBg);
   }
@@ -6235,7 +6235,11 @@ export class GlobeEngine {
        object under the finger even if it drifted a few px since pointerdown */
     if (wasClick) this.updateHover(e);
     if (this.annihilation) return;
-    /* click (not drag) → galaxy interior · local group · galaxy stars · UFO easter egg · node · celestial body */
+    /* click (not drag) → galaxy interior stars · galaxy interior planets · local group · galaxy stars · UFO · node · celestial body */
+    if (wasClick && this.mode === "galaxyInterior" && this.hoverGalaxyInteriorExo && this.onGalaxyInteriorPlanetClick) {
+      this.onGalaxyInteriorPlanetClick(this.hoverGalaxyInteriorExo);
+      return;
+    }
     if (wasClick && this.mode === "galaxyInterior" && this.hoverGalaxyInterior && this.onGalaxyInteriorStarClick) {
       this.onGalaxyInteriorStarClick(this.hoverGalaxyInterior);
       return;
@@ -6433,22 +6437,44 @@ export class GlobeEngine {
       return;
     }
 
-    /* galaxy interior — hover the real stars */
+    /* galaxy interior — hover the real stars (mirrors galaxy mode) */
     if (this.mode === "galaxyInterior") {
       const rect = this.container.getBoundingClientRect();
       const ndcX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       const ndcY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      /* check exoplanets first (smaller targets) */
+      let bestExo: { id: string; name: string; color: string } | null = null;
+      let bestExoD = 0.04;
+      for (const ex of this.galaxyInteriorExoPlanets) {
+        if (!ex.pivot.visible) continue;
+        ex.mesh.updateWorldMatrix(true, false);
+        ex.mesh.getWorldPosition(this.tmpV);
+        this.tmpV.project(this.camera);
+        if (this.tmpV.z > 1) continue;
+        const d = Math.hypot(this.tmpV.x - ndcX, this.tmpV.y - ndcY);
+        if (d < bestExoD) {
+          bestExoD = d;
+          bestExo = { id: ex.def.id, name: ex.def.name, color: ex.def.color };
+        }
+      }
+      this.hoverGalaxyInteriorExo = bestExo ? bestExo.id : null;
+      if (bestExo) {
+        this.renderer.domElement.style.cursor = "pointer";
+        this.onHover({ id: bestExo.id, name: bestExo.name, color: bestExo.color, x: e.clientX, y: e.clientY });
+        return;
+      }
+      /* then check stars */
       let best: { id: string; name: string; color: string } | null = null;
       let bestD = 0.06;
-      for (const s of this.galaxyInteriorStars) {
-        s.mesh.updateWorldMatrix(true, false);
-        s.mesh.getWorldPosition(this.tmpV);
+      for (const m of this.galaxyInteriorStarMarkers) {
+        m.mesh.updateWorldMatrix(true, false);
+        m.mesh.getWorldPosition(this.tmpV);
         this.tmpV.project(this.camera);
         if (this.tmpV.z > 1) continue;
         const d = Math.hypot(this.tmpV.x - ndcX, this.tmpV.y - ndcY);
         if (d < bestD) {
           bestD = d;
-          best = { id: s.def.id, name: s.def.name, color: s.def.color };
+          best = { id: m.id, name: m.name, color: m.color };
         }
       }
       this.hoverGalaxyInterior = best ? best.id : null;
@@ -7072,29 +7098,38 @@ export class GlobeEngine {
       }
     }
 
-    /* galaxy interior — real stars + planets + procedural backdrop */
+    /* galaxy interior — real stars + planets + procedural backdrop (mirrors galaxy mode) */
     if (this.mode === "galaxyInterior" && this.galaxyInteriorGroup.visible) {
       this.galaxyInteriorGroup.rotation.y += dt * 0.005;
       this.galaxyInteriorGroup.updateMatrixWorld(true);
-      /* twinkle star markers */
-      for (const s of this.galaxyInteriorStars) {
-        s.mesh.updateWorldMatrix(true, false);
-        s.mesh.getWorldPosition(s.world);
-        s.mesh.rotation.y += dt * 0.1;
-        const gm = s.glow.material as THREE.SpriteMaterial;
-        gm.opacity = 0.65 + Math.sin(this.time * 2.4 + s.world.x) * 0.25;
+      for (const m of this.galaxyInteriorStarMarkers) {
+        if (m.proper) {
+          const cycle = 1 + 0.4 * Math.sin(this.time * 0.1 + m.properCycle);
+          m.mesh.position.addScaledVector(m.proper, cycle * dt);
+          m.glow.position.addScaledVector(m.proper, cycle * dt);
+        }
+        m.mesh.updateWorldMatrix(true, false);
+        m.mesh.getWorldPosition(m.world);
+        m.mesh.rotation.y += dt * 0.12;
+        const gm = m.glow.material as THREE.SpriteMaterial;
+        gm.opacity = 0.7 + Math.sin(this.time * 2.4 + m.world.x) * 0.25;
       }
-      /* orbiting planets */
-      for (const p of this.galaxyInteriorPlanets) {
-        p.angle += p.def.speed * dt;
-        p.mesh.position.set(
-          Math.cos(p.angle) * p.def.orbit,
+      /* exoplanets orbit their host stars; only visible when the parent star is focused */
+      for (const ex of this.galaxyInteriorExoPlanets) {
+        const visible = this.galaxyInteriorFocusId === ex.parentStarId;
+        ex.pivot.visible = visible;
+        if (!visible) continue;
+        ex.angle += ex.def.speed * dt;
+        const star = this.galaxyInteriorStarMarkers.find((s) => s.id === ex.parentStarId);
+        if (star) ex.pivot.position.copy(star.world);
+        ex.mesh.position.set(
+          Math.cos(ex.angle) * ex.def.orbit,
           0,
-          Math.sin(p.angle) * p.def.orbit
+          Math.sin(ex.angle) * ex.def.orbit
         );
-        p.mesh.rotation.y += dt * 0.08;
-        p.pivot.updateWorldMatrix(true, false);
-        p.mesh.getWorldPosition(p.world);
+        ex.mesh.rotation.y += dt * 0.1;
+        ex.mesh.updateWorldMatrix(true, false);
+        ex.mesh.getWorldPosition(ex.world);
       }
     }
 
@@ -7134,9 +7169,9 @@ export class GlobeEngine {
         this.localGroupFocusId = null;
       }
     } else if (this.galaxyInteriorFocusId && this.mode === "galaxyInterior" && !this.flight) {
-      const s = this.galaxyInteriorStars.find((x) => x.def.id === this.galaxyInteriorFocusId);
-      if (s) {
-        this.followTarget(s.world, this.galaxyInteriorLocal, dt, 0.06);
+      const m = this.galaxyInteriorStarMarkers.find((x) => x.id === this.galaxyInteriorFocusId);
+      if (m) {
+        this.followTarget(m.world, this.galaxyInteriorLocal, dt, 0.06);
       } else {
         this.galaxyInteriorFocusId = null;
       }

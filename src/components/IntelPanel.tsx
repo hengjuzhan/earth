@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GalaxyStar, NeighborGalaxy, Planet } from "../data/planets";
-import type { GalaxyInteriorStar } from "../data/galaxyInteriors";
+import type { GalaxyInteriorStar, GalaxyInteriorPlanet } from "../data/galaxyInteriors";
 import { useTypewriter } from "../hooks/useTypewriter";
 import { audio } from "../audio/tacticalAudio";
 import { cn } from "../utils/cn";
@@ -17,6 +17,7 @@ interface Props {
   galaxy: NeighborGalaxy | null;
   planet: Planet | null;
   interiorStar: GalaxyInteriorStar | null;
+  interiorPlanet: GalaxyInteriorPlanet | null;
   onWide: () => void;
 }
 
@@ -253,14 +254,14 @@ function PlanetDossier({
   );
 }
 
-export default function IntelPanel({ lang, star, galaxy, planet, interiorStar, onWide }: Props) {
+export default function IntelPanel({ lang, star, galaxy, planet, interiorStar, interiorPlanet, onWide }: Props) {
   const [collapsed, setCollapsed] = useState(false);
-  /* draggable position — default bottom-left, saved while you drag */
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const dragRef = useRef<{ down: boolean; sx: number; sy: number; px: number; py: number } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const briefText = useMemo(() => {
+    if (interiorPlanet) return lang === "zh" ? interiorPlanet.briefing[0] : interiorPlanet.briefing[1];
     if (interiorStar) return lang === "zh" ? interiorStar.briefing[0] : interiorStar.briefing[1];
     if (galaxy) return lang === "zh" ? galaxy.briefing[0] : galaxy.briefing[1];
     if (planet) {
@@ -270,14 +271,14 @@ export default function IntelPanel({ lang, star, galaxy, planet, interiorStar, o
     }
     if (star) return lang === "zh" ? star.briefing[0] : star.briefing[1];
     return "";
-  }, [galaxy, planet, star, interiorStar, lang]);
+  }, [galaxy, planet, star, interiorStar, interiorPlanet, lang]);
 
   const { display, done, skip } = useTypewriter(briefText, 13, !!briefText);
   const [showData, setShowData] = useState(false);
 
   useEffect(() => {
     setShowData(false);
-  }, [star?.id, galaxy?.id, planet?.id, interiorStar?.id]);
+  }, [star?.id, galaxy?.id, planet?.id, interiorStar?.id, interiorPlanet?.id]);
 
   useEffect(() => {
     if (done) {
@@ -347,12 +348,12 @@ export default function IntelPanel({ lang, star, galaxy, planet, interiorStar, o
               <span
                 className={cn(
                   "border px-1.5 py-[1px] text-[8px] tracking-[0.2em]",
-                  star || galaxy || planet || interiorStar
+                  star || galaxy || planet || interiorStar || interiorPlanet
                     ? "border-amber-400/50 text-amber-300"
                     : "border-cyan-400/30 text-cyan-200/60"
                 )}
               >
-                {galaxy ? t(lang, "galaxyDossier") : planet ? t(lang, "celestialBody") : interiorStar ? t(lang, "galaxyDossier") : star ? t(lang, "starDossier") : t(lang, "idle")}
+                {galaxy ? t(lang, "galaxyDossier") : planet || interiorPlanet ? t(lang, "celestialBody") : interiorStar ? t(lang, "galaxyDossier") : star ? t(lang, "starDossier") : t(lang, "idle")}
               </span>
               <button
                 onClick={() => { setCollapsed(true); audio.click(); }}
@@ -364,8 +365,36 @@ export default function IntelPanel({ lang, star, galaxy, planet, interiorStar, o
             </span>
           </div>
 
-          {/* body — priority: interiorStar > galaxy > planet > star > idle */}
-          {interiorStar ? (
+          {/* body — priority: interiorPlanet > interiorStar > galaxy > planet > star > idle */}
+          {interiorPlanet ? (
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="grid grid-cols-2 gap-px border-b border-cyan-400/20 bg-cyan-400/10">
+                {interiorPlanet.data.map(([k, v, ek, ev]) => (
+                  <div key={k} className="bg-[#060d1a] px-2.5 py-1.5">
+                    <div className="text-[8px] tracking-[0.2em] text-cyan-200/45">{lang === "zh" ? k : ek}</div>
+                    <div className="font-disp text-[12px] font-bold text-cyan-100">{lang === "zh" ? v : ev}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between border-b border-cyan-400/20 px-3 py-1.5">
+                <span className="text-[11px] tracking-[0.2em]" style={{ color: interiorPlanet.color, textShadow: `0 0 8px ${interiorPlanet.color}66` }}>
+                  ◈ {lang === "zh" ? interiorPlanet.zh : interiorPlanet.name}
+                </span>
+                <span className="text-[8px] text-pink-300/80 blink">● {t(lang, "celestialBody")}</span>
+              </div>
+              <div className="hud-scroll min-h-0 flex-1 overflow-y-auto px-3 py-2">
+                <p className="whitespace-pre-wrap text-[10px] leading-relaxed text-cyan-100/85">
+                  {display}
+                  {!done && <span className="tc-cursor" />}
+                </p>
+              </div>
+              <div className="flex gap-2 border-t border-cyan-400/20 p-2.5">
+                <button onClick={() => { audio.click(); skip(); }} className="hud-btn flex-1 px-2 py-2 text-[10px] tracking-[0.25em] text-cyan-200/70">
+                  {t(lang, "skip")} &gt;&gt;
+                </button>
+              </div>
+            </div>
+          ) : interiorStar ? (
             <InteriorStarDossier
               lang={lang}
               star={interiorStar}

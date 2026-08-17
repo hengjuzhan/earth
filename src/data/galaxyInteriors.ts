@@ -573,6 +573,139 @@ export const TRIANGULUM_PLANETS: GalaxyInteriorPlanet[] = [
 ];
 
 /* ============================================================
+ *  LARGE MAGELLANIC CLOUD PLANETS
+ * ============================================================ */
+
+export const LMC_PLANETS: GalaxyInteriorPlanet[] = [
+  {
+    id: "lmc-pl1",
+    galaxyId: "lmc",
+    parentStarId: "lmc-r136a1",
+    name: "R136a1-b",
+    zh: "R136a1 候选行星",
+    color: "#c8a060",
+    type: ["候选行星", "Candidate"],
+    radius: 0.07,
+    orbit: 0.8,
+    speed: 0.55,
+    phase: 0.7,
+    briefing: [
+      "围绕已知最重恒星 R136a1 的候选行星。R136a1 质量约 215 M☉，光度是太阳的 870 万倍。如果该行星存在，将是已知最极端环境中的行星。",
+      "A candidate planet orbiting the most massive known star, R136a1 (~215 M☉). If confirmed, it would be a planet in the most extreme stellar environment known.",
+    ],
+    data: [
+      ["宿主", "R136a1", "Host", "R136a1"],
+      ["环境", "极端辐射", "Environment", "Extreme"],
+    ],
+  },
+  {
+    id: "lmc-pl2",
+    galaxyId: "lmc",
+    parentStarId: "lmc-sn1987a",
+    name: "SN1987A-b",
+    zh: "SN1987A 前身行星",
+    color: "#7a6090",
+    type: ["候选行星", "Candidate"],
+    radius: 0.05,
+    orbit: 0.5,
+    speed: 0.7,
+    phase: 2.1,
+    briefing: [
+      "SN 1987A 前身恒星 Sanduleak -69°202 的候选行星。这颗超新星是 400 年来最亮的，其行星如果存在，可能已被冲击波摧毁。",
+      "A candidate planet of the progenitor star Sanduleak -69°202 of SN 1987A, the brightest supernova in 400 years. Any planet would likely have been destroyed by the shockwave.",
+    ],
+    data: [
+      ["宿主", "Sanduleak -69°202", "Host", "Sanduleak -69°202"],
+      ["状态", "可能已毁灭", "Status", "Likely Destroyed"],
+    ],
+  },
+];
+
+/* ============================================================
+ *  SMALL MAGELLANIC CLOUD PLANETS
+ * ============================================================ */
+
+export const SMC_PLANETS: GalaxyInteriorPlanet[] = [
+  {
+    id: "smc-pl1",
+    galaxyId: "smc",
+    parentStarId: "smc-ngc346",
+    name: "NGC346-b",
+    zh: "NGC346 候选行星",
+    color: "#b0c0e0",
+    type: ["候选行星", "Candidate"],
+    radius: 0.06,
+    orbit: 0.7,
+    speed: 0.5,
+    phase: 0.3,
+    briefing: [
+      "小麦哲伦云中 NGC 346 星团区域的候选行星。NGC 346 是 SMC 中最亮的恒星形成区，年轻恒星正在诞生。",
+      "A candidate planet in the NGC 346 star-forming region of the SMC, the brightest stellar nursery in the Small Magellanic Cloud.",
+    ],
+    data: [
+      ["宿主", "NGC 346 星团", "Host", "NGC 346 Cluster"],
+      ["区域", "活跃恒星形成区", "Region", "Active SF"],
+    ],
+  },
+];
+
+/* ============================================================
+ *  IC 10 PLANETS
+ * ============================================================ */
+
+export const IC10_PLANETS: GalaxyInteriorPlanet[] = [
+  {
+    id: "ic10-pl1",
+    galaxyId: "ic10",
+    parentStarId: "ic10-x1",
+    name: "IC10-X1-b",
+    zh: "IC10 X-1 候选行星",
+    color: "#5a6a80",
+    type: ["候选行星", "Candidate"],
+    radius: 0.05,
+    orbit: 0.6,
+    speed: 0.6,
+    phase: 1.5,
+    briefing: [
+      "围绕 IC 10 X-1 黑洞双星系统的候选行星。IC 10 X-1 是已知质量最大的恒星黑洞之一，约 23 M☉。",
+      "A candidate planet orbiting the IC 10 X-1 black hole binary system, one of the most massive stellar-mass black holes known (~23 M☉).",
+    ],
+    data: [
+      ["宿主", "IC 10 X-1", "Host", "IC 10 X-1"],
+      ["环境", "黑洞双星", "Environment", "BH Binary"],
+    ],
+  },
+];
+
+/* ============================================================
+ *  NGC 6822 PLANETS
+ * ============================================================ */
+
+export const NGC6822_PLANETS: GalaxyInteriorPlanet[] = [
+  {
+    id: "ngc6822-pl1",
+    galaxyId: "ngc6822",
+    parentStarId: "ngc6822-hv",
+    name: "Hubble-V-b",
+    zh: "Hubble-V 候选行星",
+    color: "#a08860",
+    type: ["候选行星", "Candidate"],
+    radius: 0.06,
+    orbit: 0.55,
+    speed: 0.55,
+    phase: 0.9,
+    briefing: [
+      "NGC 6822 中 Hubble-V 巨型 HII 区的候选行星。Hubble-V 是本地群中最亮的 HII 区之一，正在孕育大量新生恒星。",
+      "A candidate planet in the Hubble-V giant HII region of NGC 6822, one of the brightest HII regions in the Local Group.",
+    ],
+    data: [
+      ["宿主", "Hubble-V", "Host", "Hubble-V"],
+      ["区域", "巨型 HII 区", "Region", "Giant HII"],
+    ],
+  },
+];
+
+/* ============================================================
  *  GALAXY INTERIOR GENERATION CONFIG
  *  For galaxies without specific data, we generate procedural
  *  stars based on the galaxy's type and scale.
@@ -680,4 +813,8 @@ export const GALAXY_INTERIOR_STARS_BY_GALAXY: Record<string, GalaxyInteriorStar[
 export const GALAXY_INTERIOR_PLANETS_BY_GALAXY: Record<string, GalaxyInteriorPlanet[]> = {
   andromeda: ANDROMEDA_PLANETS,
   triangulum: TRIANGULUM_PLANETS,
+  lmc: LMC_PLANETS,
+  smc: SMC_PLANETS,
+  ic10: IC10_PLANETS,
+  ngc6822: NGC6822_PLANETS,
 };
